@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AGENDA eSF 010</title>
+    <title>AGENDA eSF</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
@@ -22,7 +22,7 @@
             <div class="bg-blue-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-200">
                 <i data-lucide="shield-check" class="text-white" size="32"></i>
             </div>
-            <h2 class="text-3xl font-extrabold text-slate-900">eSF Scheduler Pro</h2>
+            <h2 class="text-3xl font-extrabold text-slate-900">Agenda eSF</h2>
             <p class="mt-2 text-sm text-slate-500">Acesso restrito à equipe de saúde</p>
         </div>
         <form id="loginForm" class="mt-8 space-y-4">
@@ -42,7 +42,7 @@
             <div class="flex justify-between h-16">
                 <div class="flex items-center gap-8">
                     <span class="font-bold text-blue-600 flex items-center gap-2">
-                        <i data-lucide="activity"></i> eSF Scheduler
+                        <i data-lucide="activity"></i> Agenda eSF
                     </span>
                     <div class="flex space-x-4 h-full">
                         <button onclick="switchTab('agenda')" id="tab-agenda" class="px-3 py-2 text-sm font-medium flex items-center gap-2 transition tab-active h-full">
@@ -84,8 +84,8 @@
                         <div class="space-y-3">
                             <select id="agendaFilterProf" onchange="renderAgenda()" class="w-full text-sm border-slate-200 rounded-lg">
                                 <option value="todos">Todos Profissionais</option>
-                                <option value="Dr. Adler">Dr. Adler</option>
-                                <option value="Enfermeira">Enfermeira</option>
+                                <option value="Dr. Adler">Adler</option>
+                                <option value="Enfermeira">Jaina</option>
                             </select>
                             <input type="date" id="agendaFilterDate" onchange="renderAgenda()" class="w-full text-sm border-slate-200 rounded-lg">
                         </div>
@@ -161,8 +161,8 @@
                 <div>
                     <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Profissional</label>
                     <select id="appo-prof" class="w-full border-slate-300 rounded-xl">
-                        <option value="Dr. Adler">Dr. Adler</option>
-                        <option value="Enfermeira">Enfermeira</option>
+                        <option value="Dr. Adler">Médico - Adler</option>
+                        <option value="Enfermeira">Enfermeira - Jaina</option>
                     </select>
                 </div>
                 <div>
