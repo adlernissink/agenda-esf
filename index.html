@@ -215,18 +215,18 @@
 </div>
 
 <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
     import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, collection, addDoc, onSnapshot, query, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     // --- CONFIGURAÇÃO CORRIGIDA ---
     const firebaseConfig = {
-        apiKey: "AIzaSyBznLvHmZx3ncL9YH7tHCzSqj0eeUN_q0o",
-        authDomain: "esf-equipe-10.firebaseapp.com",
-        projectId: "esf-equipe-10",
-        storageBucket: "esf-equipe-10.firebasestorage.app",
-        messagingSenderId: "387152992678",
-        appId: "1:387152992678:web:fbd5831f024847b26c9767"
+      apiKey: "AIzaSyBznLvHmZx3ncL9YH7tHCzSqj0eeUN_q0o",
+      authDomain: "esf-equipe-10.firebaseapp.com",
+      projectId: "esf-equipe-10",
+      storageBucket: "esf-equipe-10.firebasestorage.app",
+      messagingSenderId: "387152992678",
+      appId: "1:387152992678:web:fbd5831f024847b26c9767"
     };
 
     const app = initializeApp(firebaseConfig);
@@ -395,43 +395,80 @@
         autoList.classList.remove('hidden');
     };
 
-    // --- FORMS ---
+    // --- FORMS (Com Tratamento de Erro) ---
     document.getElementById('form-patient').onsubmit = async (e) => {
         e.preventDefault();
-        const data = {
-            name: document.getElementById('pat-name').value,
-            dob: document.getElementById('pat-dob').value,
-            acs: document.getElementById('pat-acs').value,
-            meds: document.getElementById('pat-meds').value,
-            createdAt: new Date().toISOString()
-        };
-        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'patients'), data);
-        closeModal('patient');
-        document.getElementById('form-patient').reset();
+        const btn = document.getElementById('btnSavePat');
+        const originalText = btn.innerText;
+        btn.innerText = "Salvando...";
+        btn.disabled = true;
+
+        try {
+            const data = {
+                name: document.getElementById('pat-name').value,
+                dob: document.getElementById('pat-dob').value,
+                acs: document.getElementById('pat-acs').value,
+                meds: document.getElementById('pat-meds').value,
+                createdAt: new Date().toISOString()
+            };
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'patients'), data);
+            closeModal('patient');
+            document.getElementById('form-patient').reset();
+            alert("Paciente cadastrado com sucesso!");
+        } catch (error) {
+            console.error("Erro ao salvar paciente:", error);
+            alert("Erro ao salvar: " + error.message + "\nVerifique se o 'appId' no código é igual ao das Regras do Firebase.");
+        } finally {
+            btn.innerText = originalText;
+            btn.disabled = false;
+        }
     };
 
     document.getElementById('form-appointment').onsubmit = async (e) => {
         e.preventDefault();
-        const pId = document.getElementById('appo-patient-id').value;
-        if (!pId) { alert("Por favor, selecione um paciente da lista ou cadastre um novo."); return; }
+        const btn = document.getElementById('btnSaveAppo');
+        const originalText = btn.innerText;
+        btn.innerText = "Agendando...";
+        btn.disabled = true;
 
-        const data = {
-            patientId: pId,
-            professional: document.getElementById('appo-prof').value,
-            type: document.getElementById('appo-type').value,
-            date: document.getElementById('appo-date').value,
-            time: document.getElementById('appo-time').value,
-            createdAt: new Date().toISOString()
-        };
-        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'appointments'), data);
-        closeModal('appointment');
-        document.getElementById('form-appointment').reset();
-        document.getElementById('appo-patient-id').value = "";
+        const pId = document.getElementById('appo-patient-id').value;
+        if (!pId) { 
+            alert("Por favor, selecione um paciente da lista ou cadastre um novo."); 
+            btn.innerText = originalText;
+            btn.disabled = false;
+            return; 
+        }
+
+        try {
+            const data = {
+                patientId: pId,
+                professional: document.getElementById('appo-prof').value,
+                type: document.getElementById('appo-type').value,
+                date: document.getElementById('appo-date').value,
+                time: document.getElementById('appo-time').value,
+                createdAt: new Date().toISOString()
+            };
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'appointments'), data);
+            closeModal('appointment');
+            document.getElementById('form-appointment').reset();
+            document.getElementById('appo-patient-id').value = "";
+            alert("Agendamento realizado!");
+        } catch (error) {
+            console.error("Erro ao agendar:", error);
+            alert("Erro ao agendar: " + error.message);
+        } finally {
+            btn.innerText = originalText;
+            btn.disabled = false;
+        }
     };
 
     window.deleteAppo = async (id) => {
         if (confirm("Excluir este agendamento?")) {
-            await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'appointments', id));
+            try {
+                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'appointments', id));
+            } catch (error) {
+                alert("Erro ao excluir: " + error.message);
+            }
         }
     };
 
@@ -439,7 +476,7 @@
         const p = patients.find(p => p.id === id);
         alert(`Paciente: ${p.name}\n\nMedicações de Uso Contínuo:\n${p.meds || 'Nenhuma registrada'}`);
     };
-
+    
     // --- MODAL UTILS ---
     window.openModal = (id) => document.getElementById(`modal-${id}`).classList.replace('hidden', 'flex');
     window.closeModal = (id) => document.getElementById(`modal-${id}`).classList.replace('flex', 'hidden');
