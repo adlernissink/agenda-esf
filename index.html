@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AGENDA eSF</title>
+    <title>AGENDA eSF - Dr. Adler</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
@@ -28,7 +28,7 @@
         <form id="loginForm" class="mt-8 space-y-4">
             <input type="email" id="email" required class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="E-mail funcional">
             <input type="password" id="password" required class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Senha">
-            <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition">Entrar no Sistema</button>
+            <button type="submit" id="btnLogin" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition">Entrar no Sistema</button>
         </form>
         <p id="loginError" class="text-red-500 text-xs text-center hidden mt-4"></p>
     </div>
@@ -180,7 +180,8 @@
                 <input type="date" id="appo-date" class="border-slate-300 rounded-xl" required>
                 <input type="time" id="appo-time" class="border-slate-300 rounded-xl" required>
             </div>
-            <button type="submit" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-blue-100">Agendar Paciente</button>
+            <!-- CORREÇÃO: Adicionado ID ao botão -->
+            <button type="submit" id="btnSaveAppo" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-blue-100">Agendar Paciente</button>
         </form>
     </div>
 </div>
@@ -209,17 +210,19 @@
                 <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Medicações de Uso Contínuo</label>
                 <textarea id="pat-meds" class="w-full border-slate-300 rounded-xl" rows="3" placeholder="Liste as medicações e dosagens..."></textarea>
             </div>
-            <button type="submit" class="w-full bg-emerald-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-emerald-100">Salvar Paciente</button>
+            <!-- CORREÇÃO: Adicionado ID ao botão -->
+            <button type="submit" id="btnSavePat" class="w-full bg-emerald-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-emerald-100">Salvar Paciente</button>
         </form>
     </div>
 </div>
 
 <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
+    // CORREÇÃO: Padronização das versões para 11.6.1 (12.8.0 não é compatível/existente neste contexto)
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, collection, addDoc, onSnapshot, query, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    // --- CONFIGURAÇÃO CORRIGIDA ---
+    // --- CONFIGURAÇÃO ---
     const firebaseConfig = {
       apiKey: "AIzaSyBznLvHmZx3ncL9YH7tHCzSqj0eeUN_q0o",
       authDomain: "esf-equipe-10.firebaseapp.com",
@@ -233,7 +236,7 @@
     const auth = getAuth(app);
     const db = getFirestore(app);
     
-    // Identificador para separar os dados no banco (pode manter este ou trocar)
+    // Identificador para separar os dados no banco
     const appId = 'esf-equipe-10';
 
     // State
@@ -244,6 +247,11 @@
     // --- AUTH ---
     document.getElementById('loginForm').onsubmit = async (e) => {
         e.preventDefault();
+        const btn = document.getElementById('btnLogin');
+        const originalText = btn.innerText;
+        btn.innerText = "Entrando...";
+        btn.disabled = true;
+
         const email = document.getElementById('email').value;
         const pass = document.getElementById('password').value;
         const errorEl = document.getElementById('loginError');
@@ -252,8 +260,12 @@
             await signInWithEmailAndPassword(auth, email, pass);
             errorEl.classList.add('hidden');
         } catch (err) {
-            errorEl.innerText = "Falha no login. Verifique as credenciais.";
+            console.error(err);
+            errorEl.innerText = "Falha no login: " + err.message;
             errorEl.classList.remove('hidden');
+        } finally {
+            btn.innerText = originalText;
+            btn.disabled = false;
         }
     };
 
@@ -278,6 +290,11 @@
         onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'patients'), (snap) => {
             patients = snap.docs.map(d => ({ id: d.id, ...d.data() }));
             renderPatients();
+        }, (error) => {
+            console.error("Erro ao ler pacientes:", error);
+            if (error.code === 'permission-denied') {
+                alert("Erro de permissão: Verifique se a Regra do Firestore permite o ID: " + appId);
+            }
         });
 
         // Appointments listener
@@ -351,7 +368,7 @@
                 <td class="px-6 py-4 font-bold text-slate-800">${p.name}</td>
                 <td class="px-6 py-4 text-slate-500">${p.acs}</td>
                 <td class="px-6 py-4 text-slate-500">${new Date(p.dob + 'T00:00:00').toLocaleDateString()}</td>
-                <td class="px-6 py-4 text-slate-400">${lastAppo ? lastAppo.date : 'Nunca'}</td>
+                <td class="px-6 py-4 text-slate-400">${lastAppo ? lastAppo.date.split('-').reverse().join('/') : 'Nunca'}</td>
                 <td class="px-6 py-4">
                     <button onclick="viewPatientMeds('${p.id}')" class="text-blue-600 hover:underline">Ver Medicações</button>
                 </td>
@@ -395,10 +412,10 @@
         autoList.classList.remove('hidden');
     };
 
-    // --- FORMS (Com Tratamento de Erro) ---
+    // --- FORMS (Com IDs corrigidos) ---
     document.getElementById('form-patient').onsubmit = async (e) => {
         e.preventDefault();
-        const btn = document.getElementById('btnSavePat');
+        const btn = document.getElementById('btnSavePat'); // Agora o ID existe no HTML
         const originalText = btn.innerText;
         btn.innerText = "Salvando...";
         btn.disabled = true;
@@ -417,7 +434,7 @@
             alert("Paciente cadastrado com sucesso!");
         } catch (error) {
             console.error("Erro ao salvar paciente:", error);
-            alert("Erro ao salvar: " + error.message + "\nVerifique se o 'appId' no código é igual ao das Regras do Firebase.");
+            alert("Erro ao salvar: " + error.message);
         } finally {
             btn.innerText = originalText;
             btn.disabled = false;
@@ -426,7 +443,7 @@
 
     document.getElementById('form-appointment').onsubmit = async (e) => {
         e.preventDefault();
-        const btn = document.getElementById('btnSaveAppo');
+        const btn = document.getElementById('btnSaveAppo'); // Agora o ID existe no HTML
         const originalText = btn.innerText;
         btn.innerText = "Agendando...";
         btn.disabled = true;
