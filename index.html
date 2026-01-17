@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AGENDA eSF 010</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .tab-active { border-bottom: 2px solid #2563eb; color: #2563eb; }
+        [v-cloak] { display: none; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+
+<!-- Tela de Login -->
+<div id="loginScreen" class="fixed inset-0 bg-white z-[100] flex items-center justify-center p-4">
+    <div class="max-w-md w-full space-y-8 bg-slate-50 p-8 rounded-3xl border border-slate-200 shadow-xl">
+        <div class="text-center">
+            <div class="bg-blue-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-200">
+                <i data-lucide="shield-check" class="text-white" size="32"></i>
+            </div>
+            <h2 class="text-3xl font-extrabold text-slate-900">eSF Scheduler Pro</h2>
+            <p class="mt-2 text-sm text-slate-500">Acesso restrito à equipe de saúde</p>
+        </div>
+        <form id="loginForm" class="mt-8 space-y-4">
+            <input type="email" id="email" required class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="E-mail funcional">
+            <input type="password" id="password" required class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Senha">
+            <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition">Entrar no Sistema</button>
+        </form>
+        <p id="loginError" class="text-red-500 text-xs text-center hidden mt-4"></p>
+    </div>
+</div>
+
+<!-- Dashboard Principal -->
+<div id="mainContent" class="hidden">
+    <!-- Navbar -->
+    <nav class="bg-white border-b border-slate-200 sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center gap-8">
+                    <span class="font-bold text-blue-600 flex items-center gap-2">
+                        <i data-lucide="activity"></i> eSF Scheduler
+                    </span>
+                    <div class="flex space-x-4 h-full">
+                        <button onclick="switchTab('agenda')" id="tab-agenda" class="px-3 py-2 text-sm font-medium flex items-center gap-2 transition tab-active h-full">
+                            <i data-lucide="calendar" size="18"></i> Agenda
+                        </button>
+                        <button onclick="switchTab('pacientes')" id="tab-pacientes" class="px-3 py-2 text-sm font-medium flex items-center gap-2 transition h-full text-slate-500">
+                            <i data-lucide="users" size="18"></i> Pacientes
+                        </button>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <span id="userDisplay" class="text-xs font-medium text-slate-600 bg-slate-100 px-3 py-1 rounded-full"></span>
+                    <button onclick="handleLogout()" class="text-slate-400 hover:text-red-500 transition">
+                        <i data-lucide="log-out" size="20"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto p-4 lg:p-8">
+        
+        <!-- ABA: AGENDA -->
+        <section id="section-agenda" class="space-y-6">
+            <div class="flex justify-between items-end">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-800">Agenda da Equipe</h2>
+                    <p class="text-slate-500 text-sm" id="todayLabel"></p>
+                </div>
+                <button onclick="openModal('appointment')" class="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-blue-700 transition flex items-center gap-2">
+                    <i data-lucide="plus"></i> Novo Agendamento
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                <div class="lg:col-span-1 space-y-4">
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Filtros</h3>
+                        <div class="space-y-3">
+                            <select id="agendaFilterProf" onchange="renderAgenda()" class="w-full text-sm border-slate-200 rounded-lg">
+                                <option value="todos">Todos Profissionais</option>
+                                <option value="Dr. Adler">Dr. Adler</option>
+                                <option value="Enfermeira">Enfermeira</option>
+                            </select>
+                            <input type="date" id="agendaFilterDate" onchange="renderAgenda()" class="w-full text-sm border-slate-200 rounded-lg">
+                        </div>
+                    </div>
+                </div>
+                <div class="lg:col-span-3 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div id="appointmentsList" class="divide-y divide-slate-100 min-h-[400px]">
+                        <!-- JS Render -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ABA: PACIENTES -->
+        <section id="section-pacientes" class="hidden space-y-6">
+            <div class="flex justify-between items-center">
+                <h2 class="text-2xl font-bold text-slate-800">Painel de Pacientes</h2>
+                <button onclick="openModal('patient')" class="bg-emerald-600 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-emerald-700 transition flex items-center gap-2">
+                    <i data-lucide="user-plus"></i> Novo Paciente
+                </button>
+            </div>
+
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-4">
+                <input type="text" id="patientSearchName" oninput="renderPatients()" placeholder="Buscar por nome..." class="border-slate-200 rounded-lg text-sm">
+                <select id="patientFilterACS" onchange="renderPatients()" class="border-slate-200 rounded-lg text-sm">
+                    <option value="todos">Todos os ACS</option>
+                    <option value="Microárea 1">Microárea 1</option>
+                    <option value="Microárea 2">Microárea 2</option>
+                    <option value="Microárea 3">Microárea 3</option>
+                    <option value="Microárea 4">Microárea 4</option>
+                    <option value="Microárea 5">Microárea 5</option>
+                    <option value="Microárea 6">Microárea 6</option>
+                </select>
+                <input type="date" id="patientSearchDob" onchange="renderPatients()" class="border-slate-200 rounded-lg text-sm">
+            </div>
+
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead class="bg-slate-50 text-slate-500 text-xs uppercase font-bold">
+                        <tr>
+                            <th class="px-6 py-4">Nome</th>
+                            <th class="px-6 py-4">ACS/Microárea</th>
+                            <th class="px-6 py-4">Nascimento</th>
+                            <th class="px-6 py-4">Última Consulta</th>
+                            <th class="px-6 py-4">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="patientsTableBody" class="divide-y divide-slate-100 text-sm">
+                        <!-- JS Render -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</div>
+
+<!-- Modais -->
+<!-- Modal Agendamento -->
+<div id="modal-appointment" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden">
+        <div class="p-6 border-b border-slate-100 flex justify-between">
+            <h3 class="font-bold text-xl">Novo Agendamento</h3>
+            <button onclick="closeModal('appointment')" class="text-slate-400 hover:text-slate-600"><i data-lucide="x"></i></button>
+        </div>
+        <form id="form-appointment" class="p-6 space-y-4">
+            <div class="relative">
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Paciente</label>
+                <input type="text" id="appo-patient-search" placeholder="Digite o nome..." autocomplete="off" class="w-full border-slate-300 rounded-xl px-4 py-2">
+                <div id="autocomplete-list" class="absolute z-10 w-full bg-white shadow-xl rounded-b-xl border border-t-0 border-slate-200 max-h-48 overflow-y-auto hidden"></div>
+                <input type="hidden" id="appo-patient-id">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Profissional</label>
+                    <select id="appo-prof" class="w-full border-slate-300 rounded-xl">
+                        <option value="Dr. Adler">Dr. Adler</option>
+                        <option value="Enfermeira">Enfermeira</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Tipo de Consulta</label>
+                    <select id="appo-type" class="w-full border-slate-300 rounded-xl">
+                        <option value="Rotina" data-dur="20">Rotina (20m)</option>
+                        <option value="Pré-Natal" data-dur="40">Pré-Natal (40m)</option>
+                        <option value="Puericultura" data-dur="30">Puericultura (30m)</option>
+                        <option value="Saúde Mental" data-dur="40">Saúde Mental (40m)</option>
+                        <option value="Exames" data-dur="15">Exames (15m)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <input type="date" id="appo-date" class="border-slate-300 rounded-xl" required>
+                <input type="time" id="appo-time" class="border-slate-300 rounded-xl" required>
+            </div>
+            <button type="submit" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-blue-100">Agendar Paciente</button>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Novo Paciente -->
+<div id="modal-patient" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden">
+        <div class="p-6 border-b border-slate-100 flex justify-between">
+            <h3 class="font-bold text-xl">Cadastro de Paciente</h3>
+            <button onclick="closeModal('patient')" class="text-slate-400 hover:text-slate-600"><i data-lucide="x"></i></button>
+        </div>
+        <form id="form-patient" class="p-6 space-y-4">
+            <input type="text" id="pat-name" placeholder="Nome Completo" required class="w-full border-slate-300 rounded-xl px-4 py-2">
+            <div class="grid grid-cols-2 gap-4">
+                <input type="date" id="pat-dob" required class="border-slate-300 rounded-xl">
+                <select id="pat-acs" class="border-slate-300 rounded-xl">
+                    <option value="Microárea 1">Microárea 1</option>
+                    <option value="Microárea 2">Microárea 2</option>
+                    <option value="Microárea 3">Microárea 3</option>
+                    <option value="Microárea 4">Microárea 4</option>
+                    <option value="Microárea 5">Microárea 5</option>
+                    <option value="Microárea 6">Microárea 6</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Medicações de Uso Contínuo</label>
+                <textarea id="pat-meds" class="w-full border-slate-300 rounded-xl" rows="3" placeholder="Liste as medicações e dosagens..."></textarea>
+            </div>
+            <button type="submit" class="w-full bg-emerald-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-emerald-100">Salvar Paciente</button>
+        </form>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, collection, addDoc, onSnapshot, query, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // --- CONFIGURAÇÃO CORRIGIDA ---
+    const firebaseConfig = {
+        apiKey: "AIzaSyBznLvHmZx3ncL9YH7tHCzSqj0eeUN_q0o",
+        authDomain: "esf-equipe-10.firebaseapp.com",
+        projectId: "esf-equipe-10",
+        storageBucket: "esf-equipe-10.firebasestorage.app",
+        messagingSenderId: "387152992678",
+        appId: "1:387152992678:web:fbd5831f024847b26c9767"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    
+    // Identificador para separar os dados no banco (pode manter este ou trocar)
+    const appId = 'esf-equipe-10';
+
+    // State
+    let appointments = [];
+    let patients = [];
+    let currentUser = null;
+
+    // --- AUTH ---
+    document.getElementById('loginForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('email').value;
+        const pass = document.getElementById('password').value;
+        const errorEl = document.getElementById('loginError');
+        
+        try {
+            await signInWithEmailAndPassword(auth, email, pass);
+            errorEl.classList.add('hidden');
+        } catch (err) {
+            errorEl.innerText = "Falha no login. Verifique as credenciais.";
+            errorEl.classList.remove('hidden');
+        }
+    };
+
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            currentUser = user;
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('mainContent').classList.remove('hidden');
+            document.getElementById('userDisplay').innerText = user.email;
+            initData();
+        } else {
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('mainContent').classList.add('hidden');
+        }
+    });
+
+    window.handleLogout = () => signOut(auth);
+
+    // --- DATA ---
+    const initData = () => {
+        // Patients listener
+        onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'patients'), (snap) => {
+            patients = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            renderPatients();
+        });
+
+        // Appointments listener
+        onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'appointments'), (snap) => {
+            appointments = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            renderAgenda();
+        });
+    };
+
+    // --- RENDERING ---
+    window.switchTab = (tab) => {
+        document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
+        document.getElementById(`section-${tab}`).classList.remove('hidden');
+        document.querySelectorAll('nav button').forEach(b => b.classList.remove('tab-active', 'text-slate-500'));
+        document.getElementById(`tab-${tab}`).classList.add('tab-active');
+        lucide.createIcons();
+    };
+
+    window.renderAgenda = () => {
+        const prof = document.getElementById('agendaFilterProf').value;
+        const date = document.getElementById('agendaFilterDate').value;
+        const list = document.getElementById('appointmentsList');
+        
+        let filtered = [...appointments];
+        if (prof !== 'todos') filtered = filtered.filter(a => a.professional === prof);
+        if (date) filtered = filtered.filter(a => a.date === date);
+        
+        filtered.sort((a,b) => (a.date + a.time).localeCompare(b.date + b.time));
+
+        list.innerHTML = filtered.length ? '' : '<div class="p-12 text-center text-slate-400">Sem agendamentos.</div>';
+        filtered.forEach(a => {
+            const pat = patients.find(p => p.id === a.patientId) || { name: a.patientName };
+            const div = document.createElement('div');
+            div.className = "p-4 flex justify-between items-center hover:bg-slate-50";
+            div.innerHTML = `
+                <div class="flex gap-4">
+                    <div class="text-blue-600 font-bold bg-blue-50 px-3 py-2 rounded-xl text-center min-w-[70px]">
+                        ${a.time}
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-800">${pat.name}</h4>
+                        <p class="text-xs text-slate-500">${a.type} • ${a.professional}</p>
+                    </div>
+                </div>
+                <button onclick="deleteAppo('${a.id}')" class="text-slate-300 hover:text-red-500 transition"><i data-lucide="trash-2" size="18"></i></button>
+            `;
+            list.appendChild(div);
+        });
+        lucide.createIcons();
+    };
+
+    window.renderPatients = () => {
+        const query = document.getElementById('patientSearchName').value.toLowerCase();
+        const acs = document.getElementById('patientFilterACS').value;
+        const dob = document.getElementById('patientSearchDob').value;
+        const body = document.getElementById('patientsTableBody');
+
+        let filtered = [...patients];
+        if (query) filtered = filtered.filter(p => p.name.toLowerCase().includes(query));
+        if (acs !== 'todos') filtered = filtered.filter(p => p.acs === acs);
+        if (dob) filtered = filtered.filter(p => p.dob === dob);
+
+        body.innerHTML = '';
+        filtered.forEach(p => {
+            const lastAppo = appointments
+                .filter(a => a.patientId === p.id)
+                .sort((a,b) => b.date.localeCompare(a.date))[0];
+                
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="px-6 py-4 font-bold text-slate-800">${p.name}</td>
+                <td class="px-6 py-4 text-slate-500">${p.acs}</td>
+                <td class="px-6 py-4 text-slate-500">${new Date(p.dob + 'T00:00:00').toLocaleDateString()}</td>
+                <td class="px-6 py-4 text-slate-400">${lastAppo ? lastAppo.date : 'Nunca'}</td>
+                <td class="px-6 py-4">
+                    <button onclick="viewPatientMeds('${p.id}')" class="text-blue-600 hover:underline">Ver Medicações</button>
+                </td>
+            `;
+            body.appendChild(tr);
+        });
+    };
+
+    // --- LOGIC: AUTOCOMPLETE ---
+    const searchInput = document.getElementById('appo-patient-search');
+    const autoList = document.getElementById('autocomplete-list');
+
+    searchInput.oninput = () => {
+        const val = searchInput.value.toLowerCase();
+        autoList.innerHTML = '';
+        if (!val) { autoList.classList.add('hidden'); return; }
+
+        const matches = patients.filter(p => p.name.toLowerCase().includes(val));
+        
+        matches.forEach(p => {
+            const item = document.createElement('div');
+            item.className = "px-4 py-2 hover:bg-slate-50 cursor-pointer text-sm border-b border-slate-50";
+            item.innerText = p.name;
+            item.onclick = () => {
+                searchInput.value = p.name;
+                document.getElementById('appo-patient-id').value = p.id;
+                autoList.classList.add('hidden');
+            };
+            autoList.appendChild(item);
+        });
+
+        const newPat = document.createElement('div');
+        newPat.className = "px-4 py-2 bg-blue-50 text-blue-700 font-bold cursor-pointer text-sm";
+        newPat.innerText = "+ Cadastrar Novo Paciente";
+        newPat.onclick = () => {
+            openModal('patient');
+            document.getElementById('pat-name').value = searchInput.value;
+            autoList.classList.add('hidden');
+        };
+        autoList.appendChild(newPat);
+        autoList.classList.remove('hidden');
+    };
+
+    // --- FORMS ---
+    document.getElementById('form-patient').onsubmit = async (e) => {
+        e.preventDefault();
+        const data = {
+            name: document.getElementById('pat-name').value,
+            dob: document.getElementById('pat-dob').value,
+            acs: document.getElementById('pat-acs').value,
+            meds: document.getElementById('pat-meds').value,
+            createdAt: new Date().toISOString()
+        };
+        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'patients'), data);
+        closeModal('patient');
+        document.getElementById('form-patient').reset();
+    };
+
+    document.getElementById('form-appointment').onsubmit = async (e) => {
+        e.preventDefault();
+        const pId = document.getElementById('appo-patient-id').value;
+        if (!pId) { alert("Por favor, selecione um paciente da lista ou cadastre um novo."); return; }
+
+        const data = {
+            patientId: pId,
+            professional: document.getElementById('appo-prof').value,
+            type: document.getElementById('appo-type').value,
+            date: document.getElementById('appo-date').value,
+            time: document.getElementById('appo-time').value,
+            createdAt: new Date().toISOString()
+        };
+        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'appointments'), data);
+        closeModal('appointment');
+        document.getElementById('form-appointment').reset();
+        document.getElementById('appo-patient-id').value = "";
+    };
+
+    window.deleteAppo = async (id) => {
+        if (confirm("Excluir este agendamento?")) {
+            await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'appointments', id));
+        }
+    };
+
+    window.viewPatientMeds = (id) => {
+        const p = patients.find(p => p.id === id);
+        alert(`Paciente: ${p.name}\n\nMedicações de Uso Contínuo:\n${p.meds || 'Nenhuma registrada'}`);
+    };
+
+    // --- MODAL UTILS ---
+    window.openModal = (id) => document.getElementById(`modal-${id}`).classList.replace('hidden', 'flex');
+    window.closeModal = (id) => document.getElementById(`modal-${id}`).classList.replace('flex', 'hidden');
+
+    document.getElementById('agendaFilterDate').valueAsDate = new Date();
+    document.getElementById('todayLabel').innerText = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+
+    lucide.createIcons();
+</script>
+</body>
+</html>
