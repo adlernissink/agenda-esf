@@ -92,9 +92,40 @@
                     </div>
                 </div>
                 <div class="lg:col-span-3 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                    <div id="appointmentsList" class="divide-y divide-slate-100 min-h-[400px]">
-                        <!-- JS Render -->
+<!-- Nova Estrutura Visual da Agenda -->
+                <div class="lg:col-span-3 space-y-4">
+                    
+                    <!-- Aviso de Bloqueio (Invisível por padrão) -->
+                    <div id="blocked-day-notice" class="hidden bg-slate-100 border-2 border-dashed border-slate-300 rounded-2xl p-12 text-center">
+                        <i data-lucide="lock" class="mx-auto text-slate-400 mb-2" size="48"></i>
+                        <h3 class="text-xl font-bold text-slate-600">Agenda Bloqueada</h3>
+                        <p class="text-slate-500">Este dia (Sexta, Sábado, Domingo ou Feriado) não possui atendimentos.</p>
                     </div>
+
+                    <!-- Grade Manhã/Tarde (Visível por padrão) -->
+                    <div id="agenda-visual-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        
+                        <!-- Coluna Manhã -->
+                        <div class="bg-blue-50/50 rounded-2xl border border-blue-100 p-4 flex flex-col">
+                            <h3 class="font-bold text-blue-800 mb-4 flex items-center gap-2">
+                                <i data-lucide="sun" size="18"></i> Manhã (08h - 12h)
+                            </h3>
+                            <div id="slot-morning" class="space-y-3 flex-1 min-h-[200px]">
+                                <!-- Cards Manhã via JS -->
+                            </div>
+                        </div>
+
+                        <!-- Coluna Tarde -->
+                        <div class="bg-orange-50/50 rounded-2xl border border-orange-100 p-4 flex flex-col">
+                            <h3 class="font-bold text-orange-800 mb-4 flex items-center gap-2">
+                                <i data-lucide="sunset" size="18"></i> Tarde (14h - 16h)
+                            </h3>
+                            <div id="slot-afternoon" class="space-y-3 flex-1 min-h-[200px]">
+                                <!-- Cards Tarde via JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 </div>
             </div>
         </section>
@@ -414,51 +445,101 @@
 
     window.renderAgenda = () => {
         const prof = document.getElementById('agendaFilterProf').value;
-        const date = document.getElementById('agendaFilterDate').value;
-        const list = document.getElementById('appointmentsList');
+        const dateVal = document.getElementById('agendaFilterDate').value; // Formato YYYY-MM-DD
         
+        const slotMorning = document.getElementById('slot-morning');
+        const slotAfternoon = document.getElementById('slot-afternoon');
+        const grid = document.getElementById('agenda-visual-grid');
+        const blockedNotice = document.getElementById('blocked-day-notice');
+
+        // 1. Lógica de Bloqueio Automático (Sex, Sáb, Dom)
+        // O Javascript conta Domingo=0, Seg=1... Sex=5, Sab=6
+        // Como o input date vem como YYYY-MM-DD, criamos a data adicionando 'T00:00' para evitar fuso horário errado
+        const dayOfWeek = new Date(dateVal + 'T00:00:00').getDay();
+        
+        // Se for Sexta(5), Sábado(6) ou Domingo(0)
+        if (dayOfWeek === 5 || dayOfWeek === 6 || dayOfWeek === 0) {
+            grid.classList.add('hidden');
+            blockedNotice.classList.remove('hidden');
+            return; // Para aqui e não renderiza nada
+        } else {
+            grid.classList.remove('hidden');
+            blockedNotice.classList.add('hidden');
+        }
+
+        // 2. Filtragem normal
         let filtered = [...appointments];
         if (prof !== 'todos') filtered = filtered.filter(a => a.professional === prof);
-        if (date) filtered = filtered.filter(a => a.date === date);
+        if (dateVal) filtered = filtered.filter(a => a.date === dateVal);
         
         filtered.sort((a,b) => (a.date + a.time).localeCompare(b.date + b.time));
 
-        list.innerHTML = filtered.length ? '' : '<div class="p-12 text-center text-slate-400">Sem agendamentos para este filtro.</div>';
+        // Limpar colunas
+        slotMorning.innerHTML = '';
+        slotAfternoon.innerHTML = '';
+
+        if (filtered.length === 0) {
+            slotMorning.innerHTML = '<p class="text-xs text-blue-300 text-center py-4">Livre</p>';
+            slotAfternoon.innerHTML = '<p class="text-xs text-orange-300 text-center py-4">Livre</p>';
+            return;
+        }
+
         filtered.forEach(a => {
             const pat = patients.find(p => p.id === a.patientId) || { name: a.patientName, id: null };
-            const div = document.createElement('div');
-            div.className = "p-4 flex justify-between items-center hover:bg-slate-50";
             
-            // Lógica do nome clicável
-            const nameHtml = pat.id 
-                ? `<button onclick="viewPatientDetails('${pat.id}')" class="font-bold text-slate-800 hover:text-blue-600 hover:underline text-left">${pat.name}</button>`
-                : `<span class="font-bold text-slate-800">${pat.name} (Não vinculado)</span>`;
+            // Define altura baseada na duração (ex: 1min = 2.5px)
+            // Se não tiver duração salva (antigos), assume 20min
+            const duration = a.duration || (a.type === 'Pré-Natal' ? 40 : 20); 
+            const heightPx = Math.max(60, duration * 2.5); // Altura mínima de 60px
 
-            div.innerHTML = `
-                <div class="flex gap-4">
-                    <div class="text-blue-600 font-bold bg-blue-50 px-3 py-2 rounded-xl text-center min-w-[70px]">
-                        ${a.time}
+            const card = document.createElement('div');
+            // Estilo do Card com altura dinâmica
+            card.className = "bg-white rounded-xl border border-slate-200 shadow-sm p-3 relative hover:shadow-md transition group overflow-hidden flex flex-col justify-center";
+            card.style.height = `${heightPx}px`; 
+
+            // Nome clicável
+            const nameHtml = pat.id 
+                ? `<button onclick="viewPatientDetails('${pat.id}')" class="font-bold text-slate-800 text-sm hover:text-blue-600 hover:underline text-left truncate w-full">${pat.name}</button>`
+                : `<span class="font-bold text-slate-800 text-sm truncate w-full">${pat.name}</span>`;
+
+            card.innerHTML = `
+                <div class="flex items-start justify-between h-full">
+                    <div class="flex gap-3 h-full items-center">
+                        <div class="flex flex-col items-center justify-center bg-slate-100 text-slate-600 font-bold px-2 rounded-lg h-full min-w-[50px]">
+                            <span class="text-xs">${a.time}</span>
+                            <span class="text-[9px] opacity-60">${duration}m</span>
+                        </div>
+                        <div class="flex flex-col justify-center">
+                            ${nameHtml}
+                            <span class="text-xs text-slate-500">${a.type}</span>
+                        </div>
                     </div>
-                    <div>
-                        ${nameHtml}
-                        <p class="text-xs text-slate-500">${a.type} • ${a.professional}</p>
+                    
+                    <!-- Botões (Só aparecem ao passar o mouse - group-hover) -->
+                    <div class="flex flex-col gap-1 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity justify-center">
+                        <button onclick="editAppo('${a.id}')" class="p-1.5 text-slate-300 hover:text-yellow-600 hover:bg-yellow-50 rounded" title="Editar">
+                            <i data-lucide="pencil" size="14"></i>
+                        </button>
+                        <button onclick="deleteAppo('${a.id}')" class="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded" title="Excluir">
+                            <i data-lucide="trash-2" size="14"></i>
+                        </button>
                     </div>
                 </div>
-                
-                <!-- Botões de Ação -->
-                <div class="flex items-center gap-2">
-                    <button onclick="editAppo('${a.id}')" class="p-2 text-slate-300 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition" title="Editar">
-                        <i data-lucide="pencil" size="18"></i>
-                    </button>
-                    <button onclick="deleteAppo('${a.id}')" class="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition" title="Excluir">
-                        <i data-lucide="trash-2" size="18"></i>
-                    </button>
-                </div>
+                <!-- Faixa lateral colorida baseada no profissional -->
+                <div class="absolute left-0 top-0 bottom-0 w-1 ${a.professional === 'Enfermeira' ? 'bg-green-400' : 'bg-blue-500'}"></div>
             `;
-            list.appendChild(div);
+
+            // Separação Manhã (< 12:00) vs Tarde (>= 12:00)
+            const hour = parseInt(a.time.split(':')[0]);
+            if (hour < 12) {
+                slotMorning.appendChild(card);
+            } else {
+                slotAfternoon.appendChild(card);
+            }
         });
         lucide.createIcons();
     };
+    
     window.renderPatients = () => {
         const query = document.getElementById('patientSearchName').value.toLowerCase();
         const acs = document.getElementById('patientFilterACS').value;
@@ -562,7 +643,7 @@
 
     document.getElementById('form-appointment').onsubmit = async (e) => {
         e.preventDefault();
-        const btn = document.getElementById('btnSaveAppo'); // Agora o ID existe no HTML
+        const btn = document.getElementById('btnSaveAppo');
         const originalText = btn.innerText;
         btn.innerText = "Agendando...";
         btn.disabled = true;
@@ -575,11 +656,18 @@
             return; 
         }
 
+        // --- LÓGICA NOVA: Captura a duração ---
+        const typeSelect = document.getElementById('appo-type');
+        // Pega o atributo 'data-dur' da opção selecionada (ex: "40")
+        const durationVal = typeSelect.options[typeSelect.selectedIndex].getAttribute('data-dur');
+        // --------------------------------------
+
         try {
             const data = {
                 patientId: pId,
                 professional: document.getElementById('appo-prof').value,
                 type: document.getElementById('appo-type').value,
+                duration: parseInt(durationVal), // <--- ADICIONADO AQUI
                 date: document.getElementById('appo-date').value,
                 time: document.getElementById('appo-time').value,
                 createdAt: new Date().toISOString()
@@ -597,7 +685,7 @@
             btn.disabled = false;
         }
     };
-
+    
     window.deleteAppo = async (id) => {
         if (confirm("Excluir este agendamento?")) {
             try {
