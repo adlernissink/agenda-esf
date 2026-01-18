@@ -182,7 +182,6 @@
                 <input type="date" id="appo-date" class="border-slate-300 rounded-xl" required>
                 <input type="time" id="appo-time" class="border-slate-300 rounded-xl" required>
             </div>
-            <!-- CORREÇÃO: Adicionado ID ao botão -->
             <button type="submit" id="btnSaveAppo" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-blue-100">Agendar Paciente</button>
         </form>
     </div>
@@ -212,7 +211,6 @@
                 <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Medicações de Uso Contínuo</label>
                 <textarea id="pat-meds" class="w-full border-slate-300 rounded-xl" rows="3" placeholder="Liste as medicações e dosagens..."></textarea>
             </div>
-            <!-- CORREÇÃO: Adicionado ID ao botão -->
             <button type="submit" id="btnSavePat" class="w-full bg-emerald-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-emerald-100">Salvar Paciente</button>
         </form>
     </div>
@@ -257,6 +255,52 @@
             </div>
 
             <button type="submit" id="btnSaveDetails" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-100">
+                Salvar Alterações
+            </button>
+        </form>
+    </div>
+</div>
+<!-- Modal Editar Agendamento -->
+<div id="modal-edit-appointment" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden">
+        <div class="p-6 border-b border-slate-100 flex justify-between bg-yellow-50">
+            <h3 class="font-bold text-xl text-yellow-800">Editar Agendamento</h3>
+            <button onclick="closeModal('edit-appointment')" class="text-slate-400 hover:text-slate-600"><i data-lucide="x"></i></button>
+        </div>
+        <form id="form-edit-appointment" class="p-6 space-y-4">
+            <input type="hidden" id="edit-appo-id">
+            
+            <div class="p-3 bg-slate-50 rounded-xl mb-4">
+                <p class="text-xs font-bold text-slate-400 uppercase">Paciente</p>
+                <p class="font-bold text-slate-700 text-lg" id="edit-appo-patient-name">Nome do Paciente</p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Profissional</label>
+                    <select id="edit-appo-prof" class="w-full border-slate-300 rounded-xl">
+                        <option value="Dr. Adler">Médico - Adler</option>
+                        <option value="Enfermeira">Enfermeira - Jaina</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Tipo de Consulta</label>
+                    <select id="edit-appo-type" class="w-full border-slate-300 rounded-xl">
+                        <option value="Rotina">Rotina (20m)</option>
+                        <option value="Pré-Natal">Pré-Natal (40m)</option>
+                        <option value="Puericultura">Puericultura (30m)</option>
+                        <option value="Saúde Mental">Saúde Mental (40m)</option>
+                        <option value="Exames">Exames (15m)</option>
+                        <option value="Infiltração">Procedimento (infiltração - 40m)</option>
+                        <option value="Esporão">Procedimento (esporão - 20m)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <input type="date" id="edit-appo-date" class="border-slate-300 rounded-xl" required>
+                <input type="time" id="edit-appo-time" class="border-slate-300 rounded-xl" required>
+            </div>
+            <button type="submit" id="btnUpdateAppo" class="w-full bg-yellow-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-yellow-100 hover:bg-yellow-700 transition">
                 Salvar Alterações
             </button>
         </form>
@@ -370,13 +414,13 @@
         
         filtered.sort((a,b) => (a.date + a.time).localeCompare(b.date + b.time));
 
-        list.innerHTML = filtered.length ? '' : '<div class="p-12 text-center text-slate-400">Sem agendamentos.</div>';
+        list.innerHTML = filtered.length ? '' : '<div class="p-12 text-center text-slate-400">Sem agendamentos para este filtro.</div>';
         filtered.forEach(a => {
             const pat = patients.find(p => p.id === a.patientId) || { name: a.patientName, id: null };
             const div = document.createElement('div');
             div.className = "p-4 flex justify-between items-center hover:bg-slate-50";
             
-            // Lógica para saber se o nome é clicável (só se tiver ID vinculado)
+            // Lógica do nome clicável
             const nameHtml = pat.id 
                 ? `<button onclick="viewPatientDetails('${pat.id}')" class="font-bold text-slate-800 hover:text-blue-600 hover:underline text-left">${pat.name}</button>`
                 : `<span class="font-bold text-slate-800">${pat.name} (Não vinculado)</span>`;
@@ -391,13 +435,21 @@
                         <p class="text-xs text-slate-500">${a.type} • ${a.professional}</p>
                     </div>
                 </div>
-                <button onclick="deleteAppo('${a.id}')" class="text-slate-300 hover:text-red-500 transition"><i data-lucide="trash-2" size="18"></i></button>
+                
+                <!-- Botões de Ação -->
+                <div class="flex items-center gap-2">
+                    <button onclick="editAppo('${a.id}')" class="p-2 text-slate-300 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition" title="Editar">
+                        <i data-lucide="pencil" size="18"></i>
+                    </button>
+                    <button onclick="deleteAppo('${a.id}')" class="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition" title="Excluir">
+                        <i data-lucide="trash-2" size="18"></i>
+                    </button>
+                </div>
             `;
             list.appendChild(div);
         });
         lucide.createIcons();
     };
-
     window.renderPatients = () => {
         const query = document.getElementById('patientSearchName').value.toLowerCase();
         const acs = document.getElementById('patientFilterACS').value;
@@ -593,6 +645,53 @@
         } catch (error) {
             console.error("Erro ao atualizar:", error);
             alert("Erro ao salvar: " + error.message);
+        } finally {
+            btn.innerText = originalText;
+            btn.disabled = false;
+        }
+    };
+
+    // --- LÓGICA DE EDIÇÃO DE AGENDAMENTO ---
+    window.editAppo = (id) => {
+        const appo = appointments.find(a => a.id === id);
+        if (!appo) return;
+
+        const pat = patients.find(p => p.id === appo.patientId);
+        
+        // Preencher o modal de edição
+        document.getElementById('edit-appo-id').value = appo.id;
+        document.getElementById('edit-appo-patient-name').innerText = pat ? pat.name : "Paciente não encontrado";
+        document.getElementById('edit-appo-prof').value = appo.professional;
+        document.getElementById('edit-appo-type').value = appo.type;
+        document.getElementById('edit-appo-date').value = appo.date;
+        document.getElementById('edit-appo-time').value = appo.time;
+
+        openModal('edit-appointment');
+    };
+
+    document.getElementById('form-edit-appointment').onsubmit = async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('btnUpdateAppo');
+        const originalText = btn.innerText;
+        btn.innerText = "Salvando...";
+        btn.disabled = true;
+
+        const id = document.getElementById('edit-appo-id').value;
+        
+        try {
+            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'appointments', id);
+            await updateDoc(docRef, {
+                professional: document.getElementById('edit-appo-prof').value,
+                type: document.getElementById('edit-appo-type').value,
+                date: document.getElementById('edit-appo-date').value,
+                time: document.getElementById('edit-appo-time').value
+            });
+            
+            closeModal('edit-appointment');
+            alert("Agendamento atualizado com sucesso!");
+        } catch (error) {
+            console.error("Erro ao editar:", error);
+            alert("Erro ao editar: " + error.message);
         } finally {
             btn.innerText = originalText;
             btn.disabled = false;
