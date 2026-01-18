@@ -253,6 +253,15 @@
                 </label>
                 <textarea id="det-obs" class="w-full border-slate-300 rounded-xl bg-blue-50/50 focus:bg-white transition text-sm" rows="4" placeholder="Histórico, alergias ou notas importantes..."></textarea>
             </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-400 uppercase mb-2 flex items-center gap-1">
+                    <i data-lucide="history" size="12"></i> Histórico de Consultas
+                </label>
+                <div id="det-history-list" class="bg-slate-50 rounded-xl border border-slate-100 max-h-40 overflow-y-auto p-2 space-y-2">
+                    <!-- O JavaScript preenche aqui -->
+                    <p class="text-xs text-slate-400 text-center py-2">Carregando...</p>
+                </div>
+            </div>
 
             <button type="submit" id="btnSaveDetails" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-100">
                 Salvar Alterações
@@ -604,12 +613,12 @@
         alert(`Paciente: ${p.name}\n\nMedicações de Uso Contínuo:\n${p.meds || 'Nenhuma registrada'}`);
     };
 
-    // --- LÓGICA DO CARD DO PACIENTE ---
+// --- LÓGICA DO CARD DO PACIENTE (ATUALIZADA) ---
     window.viewPatientDetails = (id) => {
         const p = patients.find(pat => pat.id === id);
         if (!p) return;
 
-        // Preencher o modal
+        // 1. Preencher dados cadastrais
         document.getElementById('det-id').value = p.id;
         document.getElementById('det-name-display').innerText = p.name;
         document.getElementById('det-acs-display').innerText = p.acs;
@@ -617,40 +626,40 @@
         document.getElementById('det-dob').value = p.dob;
         document.getElementById('det-acs').value = p.acs;
         document.getElementById('det-meds').value = p.meds || '';
-        document.getElementById('det-obs').value = p.obs || ''; // Carrega as observações se existirem
+        document.getElementById('det-obs').value = p.obs || '';
+
+        // 2. Preencher Histórico de Consultas (NOVO)
+        const historyList = document.getElementById('det-history-list');
+        // Filtra agendamentos deste paciente
+        const patAppos = appointments.filter(a => a.patientId === id);
+        
+        // Ordena: Mais recente primeiro
+        patAppos.sort((a,b) => (b.date + b.time).localeCompare(a.date + a.time));
+
+        if (patAppos.length === 0) {
+            historyList.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">Nenhuma consulta registrada no sistema.</p>';
+        } else {
+            historyList.innerHTML = patAppos.map(a => `
+                <div class="flex justify-between items-center text-sm p-3 bg-white rounded-lg border border-slate-200 shadow-sm">
+                    <div class="flex items-center gap-3">
+                        <div class="bg-blue-50 text-blue-600 font-bold px-2 py-1 rounded text-xs">
+                            ${a.date.split('-').reverse().join('/')}
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="font-bold text-slate-700 text-xs">${a.type}</span>
+                            <span class="text-[10px] text-slate-400">${a.time}</span>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded-full">${a.professional}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
 
         openModal('details');
     };
-
-    document.getElementById('form-details').onsubmit = async (e) => {
-        e.preventDefault();
-        const btn = document.getElementById('btnSaveDetails');
-        const originalText = btn.innerText;
-        btn.innerText = "Salvando...";
-        btn.disabled = true;
-
-        const id = document.getElementById('det-id').value;
-        const meds = document.getElementById('det-meds').value;
-        const obs = document.getElementById('det-obs').value;
-
-        try {
-            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'patients', id);
-            // Atualiza apenas medicações e observações, mantendo o resto intacto
-            await updateDoc(docRef, { 
-                meds: meds,
-                obs: obs 
-            });
-            closeModal('details');
-            alert("Prontuário atualizado com sucesso!");
-        } catch (error) {
-            console.error("Erro ao atualizar:", error);
-            alert("Erro ao salvar: " + error.message);
-        } finally {
-            btn.innerText = originalText;
-            btn.disabled = false;
-        }
-    };
-
+    
     // --- LÓGICA DE EDIÇÃO DE AGENDAMENTO ---
     window.editAppo = (id) => {
         const appo = appointments.find(a => a.id === id);
