@@ -769,11 +769,16 @@
 
         const id = document.getElementById('edit-appo-id').value;
         
+        // CAPTURA A DURAÇÃO NA EDIÇÃO TAMBÉM
+        const typeSelect = document.getElementById('edit-appo-type');
+        const durationVal = typeSelect.options[typeSelect.selectedIndex].getAttribute('data-dur');
+
         try {
             const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'appointments', id);
             await updateDoc(docRef, {
                 professional: document.getElementById('edit-appo-prof').value,
                 type: document.getElementById('edit-appo-type').value,
+                duration: parseInt(durationVal), // ATUALIZA A DURAÇÃO
                 date: document.getElementById('edit-appo-date').value,
                 time: document.getElementById('edit-appo-time').value
             });
