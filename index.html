@@ -215,9 +215,53 @@
         </form>
     </div>
 </div>
+<!-- Modal Detalhes do Paciente -->
+<div id="modal-details" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden">
+        <div class="p-6 border-b border-slate-100 flex justify-between bg-slate-50">
+            <div>
+                <h3 class="font-bold text-xl text-slate-800" id="det-name-display">Nome do Paciente</h3>
+                <p class="text-xs text-slate-500 uppercase font-bold" id="det-acs-display">Microárea</p>
+            </div>
+            <button onclick="closeModal('details')" class="text-slate-400 hover:text-slate-600"><i data-lucide="x"></i></button>
+        </div>
+        <form id="form-details" class="p-6 space-y-4">
+            <input type="hidden" id="det-id">
+            
+            <!-- Dados Cadastrais (Apenas Leitura) -->
+            <div class="grid grid-cols-2 gap-4 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase">Nascimento</label>
+                    <input type="date" id="det-dob" disabled class="w-full bg-transparent border-none p-0 text-slate-700 font-medium text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase">ACS Responsável</label>
+                    <input type="text" id="det-acs" disabled class="w-full bg-transparent border-none p-0 text-slate-700 font-medium text-sm">
+                </div>
+            </div>
+
+            <!-- Dados Clínicos (Editáveis) -->
+            <div>
+                <label class="block text-xs font-bold text-blue-600 uppercase mb-1 flex items-center gap-1">
+                    <i data-lucide="pill" size="12"></i> Medicações de Uso Contínuo
+                </label>
+                <textarea id="det-meds" class="w-full border-slate-300 rounded-xl bg-yellow-50/50 focus:bg-white transition text-sm" rows="3"></textarea>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-blue-600 uppercase mb-1 flex items-center gap-1">
+                    <i data-lucide="file-text" size="12"></i> Observações Clínicas/Gerais
+                </label>
+                <textarea id="det-obs" class="w-full border-slate-300 rounded-xl bg-blue-50/50 focus:bg-white transition text-sm" rows="4" placeholder="Histórico, alergias ou notas importantes..."></textarea>
+            </div>
+
+            <button type="submit" id="btnSaveDetails" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-100">
+                Salvar Alterações
+            </button>
+        </form>
+    </div>
+</div>
 
 <script type="module">
-    // CORREÇÃO: Padronização das versões para 11.6.1 (12.8.0 não é compatível/existente neste contexto)
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, collection, addDoc, onSnapshot, query, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
@@ -326,16 +370,22 @@
 
         list.innerHTML = filtered.length ? '' : '<div class="p-12 text-center text-slate-400">Sem agendamentos.</div>';
         filtered.forEach(a => {
-            const pat = patients.find(p => p.id === a.patientId) || { name: a.patientName };
+            const pat = patients.find(p => p.id === a.patientId) || { name: a.patientName, id: null };
             const div = document.createElement('div');
             div.className = "p-4 flex justify-between items-center hover:bg-slate-50";
+            
+            // Lógica para saber se o nome é clicável (só se tiver ID vinculado)
+            const nameHtml = pat.id 
+                ? `<button onclick="viewPatientDetails('${pat.id}')" class="font-bold text-slate-800 hover:text-blue-600 hover:underline text-left">${pat.name}</button>`
+                : `<span class="font-bold text-slate-800">${pat.name} (Não vinculado)</span>`;
+
             div.innerHTML = `
                 <div class="flex gap-4">
                     <div class="text-blue-600 font-bold bg-blue-50 px-3 py-2 rounded-xl text-center min-w-[70px]">
                         ${a.time}
                     </div>
                     <div>
-                        <h4 class="font-bold text-slate-800">${pat.name}</h4>
+                        ${nameHtml}
                         <p class="text-xs text-slate-500">${a.type} • ${a.professional}</p>
                     </div>
                 </div>
@@ -358,6 +408,10 @@
         if (dob) filtered = filtered.filter(p => p.dob === dob);
 
         body.innerHTML = '';
+        if (filtered.length === 0) {
+            body.innerHTML = '<tr><td colspan="5" class="p-8 text-center text-slate-400">Nenhum paciente encontrado.</td></tr>';
+        }
+
         filtered.forEach(p => {
             const lastAppo = appointments
                 .filter(a => a.patientId === p.id)
@@ -365,12 +419,14 @@
                 
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td class="px-6 py-4 font-bold text-slate-800">${p.name}</td>
+                <td class="px-6 py-4">
+                    <button onclick="viewPatientDetails('${p.id}')" class="font-bold text-slate-800 hover:text-blue-600 hover:underline text-left">${p.name}</button>
+                </td>
                 <td class="px-6 py-4 text-slate-500">${p.acs}</td>
                 <td class="px-6 py-4 text-slate-500">${new Date(p.dob + 'T00:00:00').toLocaleDateString()}</td>
                 <td class="px-6 py-4 text-slate-400">${lastAppo ? lastAppo.date.split('-').reverse().join('/') : 'Nunca'}</td>
-                <td class="px-6 py-4">
-                    <button onclick="viewPatientMeds('${p.id}')" class="text-blue-600 hover:underline">Ver Medicações</button>
+                <td class="px-6 py-4 text-xs text-slate-400">
+                    Clique no nome para editar
                 </td>
             `;
             body.appendChild(tr);
@@ -492,6 +548,53 @@
     window.viewPatientMeds = (id) => {
         const p = patients.find(p => p.id === id);
         alert(`Paciente: ${p.name}\n\nMedicações de Uso Contínuo:\n${p.meds || 'Nenhuma registrada'}`);
+    };
+
+    // --- LÓGICA DO CARD DO PACIENTE ---
+    window.viewPatientDetails = (id) => {
+        const p = patients.find(pat => pat.id === id);
+        if (!p) return;
+
+        // Preencher o modal
+        document.getElementById('det-id').value = p.id;
+        document.getElementById('det-name-display').innerText = p.name;
+        document.getElementById('det-acs-display').innerText = p.acs;
+        
+        document.getElementById('det-dob').value = p.dob;
+        document.getElementById('det-acs').value = p.acs;
+        document.getElementById('det-meds').value = p.meds || '';
+        document.getElementById('det-obs').value = p.obs || ''; // Carrega as observações se existirem
+
+        openModal('details');
+    };
+
+    document.getElementById('form-details').onsubmit = async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('btnSaveDetails');
+        const originalText = btn.innerText;
+        btn.innerText = "Salvando...";
+        btn.disabled = true;
+
+        const id = document.getElementById('det-id').value;
+        const meds = document.getElementById('det-meds').value;
+        const obs = document.getElementById('det-obs').value;
+
+        try {
+            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'patients', id);
+            // Atualiza apenas medicações e observações, mantendo o resto intacto
+            await updateDoc(docRef, { 
+                meds: meds,
+                obs: obs 
+            });
+            closeModal('details');
+            alert("Prontuário atualizado com sucesso!");
+        } catch (error) {
+            console.error("Erro ao atualizar:", error);
+            alert("Erro ao salvar: " + error.message);
+        } finally {
+            btn.innerText = originalText;
+            btn.disabled = false;
+        }
     };
     
     // --- MODAL UTILS ---
