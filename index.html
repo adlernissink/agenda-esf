@@ -445,36 +445,32 @@
 
     window.renderAgenda = () => {
         const prof = document.getElementById('agendaFilterProf').value;
-        const dateVal = document.getElementById('agendaFilterDate').value; // Formato YYYY-MM-DD
+        const dateVal = document.getElementById('agendaFilterDate').value; 
         
         const slotMorning = document.getElementById('slot-morning');
         const slotAfternoon = document.getElementById('slot-afternoon');
         const grid = document.getElementById('agenda-visual-grid');
         const blockedNotice = document.getElementById('blocked-day-notice');
 
-        // 1. Lógica de Bloqueio Automático (Sex, Sáb, Dom)
-        // O Javascript conta Domingo=0, Seg=1... Sex=5, Sab=6
-        // Como o input date vem como YYYY-MM-DD, criamos a data adicionando 'T00:00' para evitar fuso horário errado
+        // 1. Lógica de Bloqueio
         const dayOfWeek = new Date(dateVal + 'T00:00:00').getDay();
         
-        // Se for Sexta(5), Sábado(6) ou Domingo(0)
         if (dayOfWeek === 5 || dayOfWeek === 6 || dayOfWeek === 0) {
             grid.classList.add('hidden');
             blockedNotice.classList.remove('hidden');
-            return; // Para aqui e não renderiza nada
+            return;
         } else {
             grid.classList.remove('hidden');
             blockedNotice.classList.add('hidden');
         }
 
-        // 2. Filtragem normal
+        // 2. Filtragem
         let filtered = [...appointments];
         if (prof !== 'todos') filtered = filtered.filter(a => a.professional === prof);
         if (dateVal) filtered = filtered.filter(a => a.date === dateVal);
         
         filtered.sort((a,b) => (a.date + a.time).localeCompare(b.date + b.time));
 
-        // Limpar colunas
         slotMorning.innerHTML = '';
         slotAfternoon.innerHTML = '';
 
@@ -487,13 +483,11 @@
         filtered.forEach(a => {
             const pat = patients.find(p => p.id === a.patientId) || { name: a.patientName, id: null };
             
-            // Define altura baseada na duração (ex: 1min = 2.5px)
-            // Se não tiver duração salva (antigos), assume 20min
+            // Define altura (Mínimo 60px)
             const duration = a.duration || (a.type === 'Pré-Natal' ? 40 : 20); 
-            const heightPx = Math.max(60, duration * 2.5); // Altura mínima de 60px
+            const heightPx = Math.max(60, duration * 2.5);
 
             const card = document.createElement('div');
-            // Estilo do Card com altura dinâmica
             card.className = "bg-white rounded-xl border border-slate-200 shadow-sm p-3 relative hover:shadow-md transition group overflow-hidden flex flex-col justify-center";
             card.style.height = `${heightPx}px`; 
 
@@ -503,33 +497,33 @@
                 : `<span class="font-bold text-slate-800 text-sm truncate w-full">${pat.name}</span>`;
 
             card.innerHTML = `
-                <div class="flex items-start justify-between h-full">
-                    <div class="flex gap-3 h-full items-center">
+                <div class="flex items-center justify-between h-full relative z-10">
+                    <div class="flex gap-3 h-full items-center overflow-hidden">
                         <div class="flex flex-col items-center justify-center bg-slate-100 text-slate-600 font-bold px-2 rounded-lg h-full min-w-[50px]">
                             <span class="text-xs">${a.time}</span>
                             <span class="text-[9px] opacity-60">${duration}m</span>
                         </div>
-                        <div class="flex flex-col justify-center">
+                        <div class="flex flex-col justify-center overflow-hidden">
                             ${nameHtml}
-                            <span class="text-xs text-slate-500">${a.type}</span>
+                            <span class="text-xs text-slate-500 truncate">${a.type}</span>
                         </div>
                     </div>
                     
-                    <!-- Botões (Só aparecem ao passar o mouse - group-hover) -->
-                    <div class="flex flex-col gap-1 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity justify-center">
+                    <!-- CORREÇÃO: Botões lado a lado (flex-row) para não sumirem -->
+                    <div class="flex items-center gap-1 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity bg-white pl-2 shadow-sm rounded-l-lg">
                         <button onclick="editAppo('${a.id}')" class="p-1.5 text-slate-300 hover:text-yellow-600 hover:bg-yellow-50 rounded" title="Editar">
-                            <i data-lucide="pencil" size="14"></i>
+                            <i data-lucide="pencil" size="16"></i>
                         </button>
                         <button onclick="deleteAppo('${a.id}')" class="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded" title="Excluir">
-                            <i data-lucide="trash-2" size="14"></i>
+                            <i data-lucide="trash-2" size="16"></i>
                         </button>
                     </div>
                 </div>
-                <!-- Faixa lateral colorida baseada no profissional -->
+                <!-- Faixa lateral colorida -->
                 <div class="absolute left-0 top-0 bottom-0 w-1 ${a.professional === 'Enfermeira' ? 'bg-green-400' : 'bg-blue-500'}"></div>
             `;
 
-            // Separação Manhã (< 12:00) vs Tarde (>= 12:00)
+            // Separação Manhã/Tarde
             const hour = parseInt(a.time.split(':')[0]);
             if (hour < 12) {
                 slotMorning.appendChild(card);
