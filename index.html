@@ -209,6 +209,10 @@
                     </select>
                 </div>
             </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Observação do Agendamento</label>
+                <input type="text" id="appo-notes" class="w-full border-slate-300 rounded-xl px-4 py-2 text-sm" placeholder="Ex: Trazer exames, encaixe...">
+            </div>
             <div class="grid grid-cols-2 gap-4">
                 <input type="date" id="appo-date" class="border-slate-300 rounded-xl" required>
                 <input type="time" id="appo-time" class="border-slate-300 rounded-xl" required>
@@ -335,6 +339,10 @@
                         <option value="Esporão" data-dur="20">Procedimento (esporão - 20m)</option>
                     </select>
                 </div>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Observação</label>
+                <input type="text" id="edit-appo-notes" class="w-full border-slate-300 rounded-xl px-4 py-2 text-sm">
             </div>
             <div class="grid grid-cols-2 gap-4">
                 <input type="date" id="edit-appo-date" class="border-slate-300 rounded-xl" required>
@@ -497,20 +505,20 @@
                 : `<span class="font-bold text-slate-800 text-sm truncate w-full">${pat.name}</span>`;
 
             card.innerHTML = `
-                <div class="flex items-center justify-between h-full relative z-10">
-                    <div class="flex gap-3 h-full items-center overflow-hidden">
+                <div class="flex items-center justify-between h-full relative z-10 w-full">
+                    <div class="flex gap-3 h-full items-center overflow-hidden w-full">
                         <div class="flex flex-col items-center justify-center bg-slate-100 text-slate-600 font-bold px-2 rounded-lg h-full min-w-[50px]">
                             <span class="text-xs">${a.time}</span>
                             <span class="text-[9px] opacity-60">${duration}m</span>
                         </div>
-                        <div class="flex flex-col justify-center overflow-hidden">
+                        <div class="flex flex-col justify-center overflow-hidden flex-1 pr-2">
                             ${nameHtml}
                             <span class="text-xs text-slate-500 truncate">${a.type}</span>
+                            ${noteHtml} <!-- AQUI ENTRA A OBSERVAÇÃO -->
                         </div>
                     </div>
                     
-                    <!-- CORREÇÃO: Botões lado a lado (flex-row) para não sumirem -->
-                    <div class="flex items-center gap-1 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity bg-white pl-2 shadow-sm rounded-l-lg">
+                    <div class="flex items-center gap-1 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity bg-white pl-2 shadow-sm rounded-l-lg shrink-0">
                         <button onclick="editAppo('${a.id}')" class="p-1.5 text-slate-300 hover:text-yellow-600 hover:bg-yellow-50 rounded" title="Editar">
                             <i data-lucide="pencil" size="16"></i>
                         </button>
@@ -661,7 +669,8 @@
                 patientId: pId,
                 professional: document.getElementById('appo-prof').value,
                 type: document.getElementById('appo-type').value,
-                duration: parseInt(durationVal), // <--- ADICIONADO AQUI
+                duration: parseInt(durationVal),
+                notes: document.getElementById('appo-notes').value,
                 date: document.getElementById('appo-date').value,
                 time: document.getElementById('appo-time').value,
                 createdAt: new Date().toISOString()
@@ -670,6 +679,7 @@
             closeModal('appointment');
             document.getElementById('form-appointment').reset();
             document.getElementById('appo-patient-id').value = "";
+            document.getElementById('appo-notes').value = "";
             alert("Agendamento realizado!");
         } catch (error) {
             console.error("Erro ao agendar:", error);
@@ -754,6 +764,7 @@
         document.getElementById('edit-appo-patient-name').innerText = pat ? pat.name : "Paciente não encontrado";
         document.getElementById('edit-appo-prof').value = appo.professional;
         document.getElementById('edit-appo-type').value = appo.type;
+        document.getElementById('edit-appo-notes').value = appo.notes || ''; 
         document.getElementById('edit-appo-date').value = appo.date;
         document.getElementById('edit-appo-time').value = appo.time;
 
@@ -778,7 +789,8 @@
             await updateDoc(docRef, {
                 professional: document.getElementById('edit-appo-prof').value,
                 type: document.getElementById('edit-appo-type').value,
-                duration: parseInt(durationVal), // ATUALIZA A DURAÇÃO
+                duration: parseInt(durationVal),
+                notes: document.getElementById('edit-appo-notes').value,
                 date: document.getElementById('edit-appo-date').value,
                 time: document.getElementById('edit-appo-time').value
             });
