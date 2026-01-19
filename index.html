@@ -504,6 +504,14 @@
                 ? `<button onclick="viewPatientDetails('${pat.id}')" class="font-bold text-slate-800 text-sm hover:text-blue-600 hover:underline text-left truncate w-full">${pat.name}</button>`
                 : `<span class="font-bold text-slate-800 text-sm truncate w-full">${pat.name}</span>`;
 
+            // --- CORREÇÃO: Definição da variável noteHtml que estava faltando ---
+            const noteHtml = a.notes 
+                ? `<div class="mt-1 text-[10px] text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded border border-orange-100 truncate w-full flex items-center gap-1">
+                     <i data-lucide="message-square" size="8"></i> ${a.notes}
+                   </div>` 
+                : '';
+            // ------------------------------------------------------------------
+
             card.innerHTML = `
                 <div class="flex items-center justify-between h-full relative z-10 w-full">
                     <div class="flex gap-3 h-full items-center overflow-hidden w-full">
@@ -514,7 +522,7 @@
                         <div class="flex flex-col justify-center overflow-hidden flex-1 pr-2">
                             ${nameHtml}
                             <span class="text-xs text-slate-500 truncate">${a.type}</span>
-                            ${noteHtml} <!-- AQUI ENTRA A OBSERVAÇÃO -->
+                            ${noteHtml}
                         </div>
                     </div>
                     
@@ -540,8 +548,7 @@
             }
         });
         lucide.createIcons();
-    };
-    
+    };    
     window.renderPatients = () => {
         const query = document.getElementById('patientSearchName').value.toLowerCase();
         const acs = document.getElementById('patientFilterACS').value;
