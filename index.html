@@ -72,9 +72,15 @@
                     <h2 class="text-2xl font-bold text-slate-800">Agenda da Equipe</h2>
                     <p class="text-slate-500 text-sm" id="todayLabel"></p>
                 </div>
-                <button onclick="openModal('appointment')" class="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-blue-700 transition flex items-center gap-2">
+                <div class="flex gap-2">
+                <!-- Botão de Bloqueio (NOVO) -->
+                <button onclick="toggleDayBlock()" class="bg-red-100 text-red-600 px-3 py-2.5 rounded-xl font-bold hover:bg-red-200 transition flex items-center justify-center shadow-sm" title="Bloquear/Desbloquear este dia">
+                    <i data-lucide="lock" size="20"></i>
+                </button>
+                <button onclick="openModal('appointment')" class="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-blue-700 transition flex items-center gap-2 shadow-sm">
                     <i data-lucide="plus"></i> Novo Agendamento
                 </button>
+            </div>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -362,7 +368,7 @@
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, collection, addDoc, onSnapshot, query, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, onSnapshot, query, doc, updateDoc, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     // --- CONFIGURAÇÃO ---
     const firebaseConfig = {
@@ -377,13 +383,12 @@
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
-    
-    // Identificador para separar os dados no banco
     const appId = 'esf-equipe-10';
 
     // State
     let appointments = [];
     let patients = [];
+    let blockedDays = [];
     let currentUser = null;
 
     // --- AUTH ---
@@ -444,6 +449,11 @@
             appointments = snap.docs.map(d => ({ id: d.id, ...d.data() }));
             renderAgenda();
         });
+
+        onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'blocked_days'), (snap) => { 
+            blockedDays = snap.docs.map(d => d.id);
+            renderAgenda(); 
+        });
     };
 
     // --- RENDERING ---
@@ -466,11 +476,24 @@
 
         // 1. Lógica de Bloqueio
         const dayOfWeek = new Date(dateVal + 'T00:00:00').getDay();
+        const isManualBlocked = blockedDays.includes(dateVal);
         
-        if (dayOfWeek === 5 || dayOfWeek === 6 || dayOfWeek === 0) {
+        if (dayOfWeek === 5 || dayOfWeek === 6 || dayOfWeek === 0 || isManualBlocked) {
             grid.classList.add('hidden');
             blockedNotice.classList.remove('hidden');
-            return;
+            
+            // Muda o texto do aviso dependendo do motivo
+            const titleEl = blockedNotice.querySelector('h3');
+            const descEl = blockedNotice.querySelector('p');
+            
+            if (isManualBlocked) {
+                titleEl.innerText = "Dia Bloqueado Manualmente";
+                descEl.innerText = "A equipe definiu este dia como não letivo/bloqueado.";
+            } else {
+                titleEl.innerText = "Fim de Semana / Sexta";
+                descEl.innerText = "Não há atendimentos eletivos nestes dias.";
+            }
+            return; 
         } else {
             grid.classList.remove('hidden');
             blockedNotice.classList.add('hidden');
@@ -669,11 +692,24 @@
             return; 
         }
 
-        // --- LÓGICA NOVA: Captura a duração ---
         const typeSelect = document.getElementById('appo-type');
-        // Pega o atributo 'data-dur' da opção selecionada (ex: "40")
         const durationVal = typeSelect.options[typeSelect.selectedIndex].getAttribute('data-dur');
-        // --------------------------------------
+        const selectedDate = document.getElementById('appo-date').value;
+        const dayOfWeek = new Date(selectedDate + 'T00:00:00').getDay();
+        
+        if (dayOfWeek === 5 || dayOfWeek === 6 || dayOfWeek === 0) {
+            alert("Erro: Não é permitido agendar em Sextas, Sábados ou Domingos.");
+            btn.innerText = originalText;
+            btn.disabled = false;
+            return;
+        }
+
+        if (blockedDays.includes(selectedDate)) {
+            alert("Erro: Este dia está bloqueado administrativamente (Feriado/Reunião). Desbloqueie primeiro se for necessário.");
+            btn.innerText = originalText;
+            btn.disabled = false;
+            return;
+        }
 
         try {
             const data = {
@@ -790,8 +826,6 @@
         btn.disabled = true;
 
         const id = document.getElementById('edit-appo-id').value;
-        
-        // CAPTURA A DURAÇÃO NA EDIÇÃO TAMBÉM
         const typeSelect = document.getElementById('edit-appo-type');
         const durationVal = typeSelect.options[typeSelect.selectedIndex].getAttribute('data-dur');
 
@@ -813,6 +847,45 @@
             alert("Erro ao editar: " + error.message);
         } finally {
             btn.innerText = originalText;
+            btn.disabled = false;
+        }
+    };
+
+import { setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    window.toggleDayBlock = async () => {
+        const dateVal = document.getElementById('agendaFilterDate').value;
+        if (!dateVal) { alert("Selecione uma data no filtro primeiro."); return; }
+
+        // Verifica se é dia automático (Sex, Sab, Dom)
+        const dayOfWeek = new Date(dateVal + 'T00:00:00').getDay();
+        if (dayOfWeek === 5 || dayOfWeek === 6 || dayOfWeek === 0) {
+            alert("Este dia já é bloqueado automaticamente pelo sistema (Fim de semana/Sexta).");
+            return;
+        }
+
+        const isBlocked = blockedDays.includes(dateVal);
+        const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'blocked_days', dateVal);
+
+        const btn = document.querySelector('button[onclick="toggleDayBlock()"]');
+        btn.disabled = true;
+
+        try {
+            if (isBlocked) {
+                // Se já bloqueado, desbloqueia (deleta)
+                if(confirm(`Deseja desbloquear o dia ${dateVal.split('-').reverse().join('/')}?`)) {
+                    await deleteDoc(docRef);
+                }
+            } else {
+                // Se livre, bloqueia (cria)
+                const reason = prompt("Motivo do bloqueio (ex: Feriado, Reunião):", "Bloqueio Administrativo");
+                if (reason) {
+                    await setDoc(docRef, { reason: reason, createdAt: new Date().toISOString() });
+                }
+            }
+        } catch (err) {
+            alert("Erro ao alterar bloqueio: " + err.message);
+        } finally {
             btn.disabled = false;
         }
     };
