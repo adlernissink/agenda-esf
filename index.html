@@ -851,8 +851,6 @@
         }
     };
 
-import { setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
     window.toggleDayBlock = async () => {
         const dateVal = document.getElementById('agendaFilterDate').value;
         if (!dateVal) { alert("Selecione uma data no filtro primeiro."); return; }
