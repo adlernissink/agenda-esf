@@ -48,7 +48,7 @@ const getPatientName = (id: string) => {
 };
 
 const toggleNote = (id: string) => {
-    if (activeNoteId.value === id) {
+    if (activeNoteId.value && activeNoteId.value === id) {
         activeNoteId.value = null; 
     } else {
         activeNoteId.value = id; 
@@ -153,7 +153,7 @@ const switchToDay = (dateStr: string) => {
 
 const isBlockedDay = computed(() => {
     const day = new Date(selectedDate.value + 'T00:00:00').getDay();
-    const dateStr = selectedDate.value;
+    const dateStr = selectedDate.value as string;
     
     if (day === 0 || day === 6 || day === 5) return { isBlocked: true, reason: 'Fim de Semana / Sexta' };
     
