@@ -118,7 +118,7 @@ const handleSubmit = async () => {
     return;
   }
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toISOString().split('T')[0] as string;
   if (form.value.date < today) {
     showToast("Não é permitido agendar em datas passadas.", "error");
     return;

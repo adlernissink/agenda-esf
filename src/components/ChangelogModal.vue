@@ -9,7 +9,6 @@ const props = defineProps<{
 
 const emit = defineEmits(['close']);
 
-// --- FECHAR COM ESC (NOVO) ---
 const handleKeydown = (e: KeyboardEvent) => {
   if (e.key === 'Escape' && props.isOpen) {
     emit('close');
@@ -40,22 +39,20 @@ const getColor = (type: string) => {
   <div v-if="isOpen" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[70]">
     <div class="bg-white dark:bg-slate-800 dark:text-white rounded-3xl shadow-2xl max-w-lg w-full max-h-[85vh] flex flex-col overflow-hidden">
       
-      <!-- Cabeçalho -->
       <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-800 shrink-0">
         <div>
             <h3 class="font-bold text-xl text-slate-800 dark:text-white">Novidades & Atualizações</h3>
-            <p class="text-xs text-slate-500 mt-1">Histórico de versões do Gestão eSF</p>
+            <p class="text-xs text-slate-500 mt-1">Histórico de versões do app Gestão eSF</p>
         </div>
         <button @click="$emit('close')" class="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition text-slate-400">
             <LucideX :size="20" />
         </button>
       </div>
 
-      <!-- Lista Rolável -->
       <div class="p-6 overflow-y-auto space-y-8">
-        <div v-for="(ver, index) in appVersions" :key="ver.version" class="relative pl-8 border-l-2 border-slate-100 dark:border-slate-700 last:border-0 pb-2">
+        <!-- CORREÇÃO: removido (ver, index), agora apenas ver -->
+        <div v-for="ver in appVersions" :key="ver.version" class="relative pl-8 border-l-2 border-slate-100 dark:border-slate-700 last:border-0 pb-2">
             
-            <!-- Bolinha da Linha do Tempo -->
             <div :class="['absolute -left-[9px] top-0 w-4 h-4 rounded-full border-2 border-white dark:border-slate-800', ver.type === 'major' ? 'bg-blue-500' : 'bg-slate-300 dark:bg-slate-600']"></div>
 
             <div class="flex items-center gap-3 mb-2">

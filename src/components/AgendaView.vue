@@ -11,28 +11,23 @@ import AppointmentModal from './AppointmentModal.vue';
 import PatientModal from './PatientModal.vue';
 import { useToast } from '../utils/toast';
 
-// TIPAGEM
 type BlockedDaysMap = Record<string, any>;
 const { showToast } = useToast();
 
-// ESTADO GERAL
 const viewMode = ref<'day' | 'week'>('day'); 
 const appointments = ref<any[]>([]);
 const patients = ref<any[]>([]); 
 const blockedDays = ref<BlockedDaysMap>({}); 
-const activeNoteId = ref<string | null>(null); // Controla qual balão de nota está aberto
+const activeNoteId = ref<string | null>(null);
 
-// DATA SELECIONADA
 const selectedDate = ref(new Date().toISOString().split('T')[0]);
 const selectedProf = ref('todos');
 
-// MODAIS
 const isApptModalOpen = ref(false);
 const editingAppointment = ref<any>(null);
 const isPatientModalOpen = ref(false);
 const editingPatient = ref<any>(null);
 
-// CARREGAR DADOS
 onMounted(() => {
   onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'appointments'), (snap) => {
     appointments.value = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -47,22 +42,19 @@ onMounted(() => {
   });
 });
 
-// --- HELPER: Nomes ---
 const getPatientName = (id: string) => {
   const p = patients.value.find(pat => pat.id === id);
   return p ? p.name : 'Desconhecido';
 };
 
-// --- AÇÃO: TOGGLE NOTA ---
 const toggleNote = (id: string) => {
     if (activeNoteId.value === id) {
-        activeNoteId.value = null; // Fecha se já estiver aberto
+        activeNoteId.value = null; 
     } else {
-        activeNoteId.value = id; // Abre o clicado
+        activeNoteId.value = id; 
     }
 };
 
-// --- NAVEGAÇÃO DE DATA ---
 const changeDate = (amount: number) => {
   const date = new Date(selectedDate.value + 'T00:00:00');
   if (viewMode.value === 'day') {
@@ -77,7 +69,6 @@ const goToToday = () => {
   selectedDate.value = new Date().toISOString().split('T')[0];
 };
 
-// --- AÇÃO: BLOQUEAR/DESBLOQUEAR DIA ---
 const toggleDayBlock = async () => {
     const dateVal = selectedDate.value;
     const profVal = selectedProf.value; 
@@ -120,7 +111,6 @@ const toggleDayBlock = async () => {
     }
 };
 
-// --- LÓGICA DA VISÃO SEMANAL ---
 const weekDays = computed(() => {
   const date = new Date(selectedDate.value + 'T00:00:00');
   const dayOfWeek = date.getDay();
@@ -133,7 +123,8 @@ const weekDays = computed(() => {
   for (let i = 0; i < 5; i++) {
     const current = new Date(monday);
     current.setDate(monday.getDate() + i);
-    const dateStr = current.toISOString().split('T')[0];
+    // Correção: Forçar string
+    const dateStr = current.toISOString().split('T')[0] as string;
     
     let count = appointments.value.filter(a => a.date === dateStr).length;
     if (selectedProf.value !== 'todos') {
@@ -160,7 +151,6 @@ const switchToDay = (dateStr: string) => {
     viewMode.value = 'day';
 };
 
-// --- LÓGICA DA VISÃO DIÁRIA ---
 const isBlockedDay = computed(() => {
     const day = new Date(selectedDate.value + 'T00:00:00').getDay();
     const dateStr = selectedDate.value;
@@ -185,7 +175,6 @@ const dailyAppointments = computed(() => {
 const morningSlots = computed(() => dailyAppointments.value.filter(a => parseInt(a.time.split(':')[0]) < 12));
 const afternoonSlots = computed(() => dailyAppointments.value.filter(a => parseInt(a.time.split(':')[0]) >= 12));
 
-// AÇÕES DE MODAL
 const openApptModal = (appt: any = null) => { editingAppointment.value = appt; isApptModalOpen.value = true; };
 const openPatientModal = (patientId: string | null) => {
     if (patientId) editingPatient.value = patients.value.find(p => p.id === patientId);
@@ -281,14 +270,12 @@ const handleDelete = async (id: string) => {
 
     <!-- MODO DIA -->
     <div v-else>
-        <!-- TELA DE BLOQUEIO -->
         <div v-if="isBlockedDay.isBlocked" class="bg-slate-100 dark:bg-slate-800 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-12 text-center">
             <LucideLock class="mx-auto text-slate-400 mb-2" :size="48" />
             <h3 class="text-xl font-bold text-slate-600 dark:text-slate-300">Agenda Bloqueada</h3>
             <p class="text-slate-500 dark:text-slate-400">Motivo: {{ isBlockedDay.reason }}</p>
         </div>
 
-        <!-- GRID DE AGENDAMENTOS -->
         <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <!-- Manhã -->
             <div class="bg-blue-50/50 dark:bg-blue-900/20 rounded-2xl border border-blue-100 dark:border-blue-900/50 p-4 min-h-[300px]">
@@ -299,7 +286,6 @@ const handleDelete = async (id: string) => {
                         class="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm relative group flex flex-col justify-center"
                         :style="{ height: Math.max(60, appt.duration * 2.5) + 'px' }"
                     >
-                        <!-- Conteúdo do Card -->
                         <div class="flex gap-3 items-center h-full">
                             <div class="flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold px-2 rounded-lg h-full min-w-[50px]">
                                 <span class="text-xs">{{ appt.time }}</span><span class="text-[9px] opacity-60">{{ appt.duration }}m</span>
@@ -312,9 +298,8 @@ const handleDelete = async (id: string) => {
                                     <span class="text-slate-300 dark:text-slate-600">•</span>
                                     <span class="text-slate-400 dark:text-slate-500">{{ appt.professional }}</span>
                                     
-                                    <!-- Ícone de Observação -->
-                                    <button v-if="appt.notes" @click.stop="toggleNote(appt.id)" class="ml-2 text-orange-500 hover:text-orange-600 transition" title="Ver observação">
-                                        <LucideMessageCircle :size="14" :class="{ 'fill-orange-500': activeNoteId === appt.id }" />
+                                    <button v-if="appt.notes" @click.stop="toggleNote(String(appt.id))" class="ml-2 text-orange-500 hover:text-orange-600 transition" title="Ver observação">
+                                        <LucideMessageCircle :size="14" :class="{ 'fill-orange-500': activeNoteId === String(appt.id) }" />
                                     </button>
                                 </div>
                             </div>
@@ -326,8 +311,7 @@ const handleDelete = async (id: string) => {
                         </div>
                         <div :class="['absolute left-0 top-0 bottom-0 w-1 rounded-l-xl', appt.professional === 'Enfermeira' ? 'bg-green-400' : 'bg-blue-500']"></div>
 
-                        <!-- BALÃO DE NOTA FLUTUANTE (Fora do fluxo normal para não empurrar) -->
-                        <div v-if="activeNoteId === appt.id" class="absolute left-4 top-full mt-2 z-50 w-64 p-3 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs rounded-xl border border-slate-200 dark:border-slate-600 shadow-xl animate-in fade-in zoom-in-95 duration-200">
+                        <div v-if="activeNoteId === String(appt.id)" class="absolute left-4 top-full mt-2 z-50 w-64 p-3 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs rounded-xl border border-slate-200 dark:border-slate-600 shadow-xl animate-in fade-in zoom-in-95 duration-200">
                             <div class="font-bold text-orange-500 mb-1 flex items-center gap-1">
                                 <LucideMessageCircle :size="12" /> Observação
                             </div>
@@ -358,8 +342,8 @@ const handleDelete = async (id: string) => {
                                     <span class="text-slate-300 dark:text-slate-600">•</span>
                                     <span class="text-slate-400 dark:text-slate-500">{{ appt.professional }}</span>
 
-                                    <button v-if="appt.notes" @click.stop="toggleNote(appt.id)" class="ml-2 text-orange-500 hover:text-orange-600 transition" title="Ver observação">
-                                        <LucideMessageCircle :size="14" :class="{ 'fill-orange-500': activeNoteId === appt.id }" />
+                                    <button v-if="appt.notes" @click.stop="toggleNote(String(appt.id))" class="ml-2 text-orange-500 hover:text-orange-600 transition" title="Ver observação">
+                                        <LucideMessageCircle :size="14" :class="{ 'fill-orange-500': activeNoteId === String(appt.id) }" />
                                     </button>
                                 </div>
                             </div>
@@ -370,8 +354,7 @@ const handleDelete = async (id: string) => {
                         </div>
                         <div :class="['absolute left-0 top-0 bottom-0 w-1 rounded-l-xl', appt.professional === 'Enfermeira' ? 'bg-green-400' : 'bg-blue-500']"></div>
 
-                        <!-- BALÃO DE NOTA FLUTUANTE -->
-                        <div v-if="activeNoteId === appt.id" class="absolute left-4 top-full mt-2 z-50 w-64 p-3 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs rounded-xl border border-slate-200 dark:border-slate-600 shadow-xl animate-in fade-in zoom-in-95 duration-200">
+                        <div v-if="activeNoteId === String(appt.id)" class="absolute left-4 top-full mt-2 z-50 w-64 p-3 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs rounded-xl border border-slate-200 dark:border-slate-600 shadow-xl animate-in fade-in zoom-in-95 duration-200">
                             <div class="font-bold text-orange-500 mb-1 flex items-center gap-1">
                                 <LucideMessageCircle :size="12" /> Observação
                             </div>

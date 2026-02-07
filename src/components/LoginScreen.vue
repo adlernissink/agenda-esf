@@ -7,7 +7,7 @@ import { appVersions } from '../data/changelog'; // Importar dados
 import ChangelogModal from './ChangelogModal.vue'; // Importar Modal
 
 // Pega a versão mais recente para mostrar no texto
-const currentVersion = appVersions[0].version;
+const currentVersion = appVersions[0]?.version || '2.0.0';
 
 const email = ref('');
 const password = ref('');

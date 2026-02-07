@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db, appId } from '../firebase';
 import { 
-  LucideActivity, LucideCalendar, LucideUsers, 
+  LucideCalendar, LucideUsers, 
   LucideBarChart2, LucideFilePlus, LucideUser, 
   LucideLogOut, LucideMenu, LucideMessageSquare 
 } from 'lucide-vue-next';
