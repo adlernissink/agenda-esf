@@ -4,10 +4,14 @@ import { collection, onSnapshot, doc, deleteDoc } from 'firebase/firestore';
 import { db, appId } from '../firebase';
 import { LucideSearch, LucideUserPlus, LucideTrash2 } from 'lucide-vue-next';
 import PatientModal from './PatientModal.vue';
+import { useToast } from '../utils/toast'; 
+import { TAG_STYLES, MICROAREAS } from '../config/settings'; 
+
+const { showToast } = useToast(); 
 
 // 1. ESTADO
 const patients = ref<any[]>([]); 
-const appointments = ref<any[]>([]); // Necessário para última consulta E para o modal
+const appointments = ref<any[]>([]); 
 const searchQuery = ref('');     
 const selectedAcs = ref('todos'); 
 const searchDob = ref(''); 
@@ -16,12 +20,10 @@ const editingPatient = ref<any>(null);
 
 // 2. BUSCAR DADOS
 onMounted(() => {
-  // Busca Pacientes
   onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'patients'), (snap) => {
     patients.value = snap.docs.map(d => ({ id: d.id, ...d.data() }));
   });
 
-  // Busca Agendamentos (CRUCIAL para o histórico funcionar)
   onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'appointments'), (snap) => {
     appointments.value = snap.docs.map(d => ({ id: d.id, ...d.data() }));
   });
@@ -60,30 +62,22 @@ const handleDelete = async (id: string) => {
   if (confirm("TEM CERTEZA? Isso excluirá o paciente permanentemente.")) {
     try {
       await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'patients', id));
-      alert("Paciente excluído.");
+      showToast("Paciente excluído com sucesso!", "success"); 
     } catch (error: any) {
-      alert("Erro: " + error.message);
+      showToast("Erro ao excluir: " + error.message, "error"); 
     }
   }
 };
 
 const openModal = (patient: any = null) => {
   if (patient) {
-    const rawPatient = patients.value.find(p => p.id === patient.id);
+    const patientId = patient.id; // CONSTANTE SEGURA
+    const rawPatient = patients.value.find(p => p.id === patientId);
     editingPatient.value = rawPatient || patient;
   } else {
     editingPatient.value = null; 
   }
   isModalOpen.value = true;
-};
-
-const tagStyles: Record<string, string> = { 
-    'HAS': 'bg-red-100 text-red-700', 
-    'DM': 'bg-blue-100 text-blue-700', 
-    'GESTANTE': 'bg-pink-100 text-pink-700', 
-    'SM': 'bg-purple-100 text-purple-700', 
-    'ACAMADO': 'bg-slate-200 text-slate-700', 
-    'TABAGISTA': 'bg-orange-100 text-orange-700' 
 };
 </script>
 
@@ -108,12 +102,7 @@ const tagStyles: Record<string, string> = {
       </div>
       <select v-model="selectedAcs" class="md:col-span-4 border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-sm p-2 outline-none">
         <option value="todos">Todos os ACS</option>
-        <option value="Microárea 1">ANGÉLICA - Microárea 1</option>
-        <option value="Microárea 2">JOCILENE - Microárea 2</option>
-        <option value="Microárea 3">FABIANA - Microárea 3</option>
-        <option value="Microárea 4">MONALISA - Microárea 4</option>
-        <option value="Microárea 5">JAILTON - Microárea 5</option>
-        <option value="Microárea 6">MARIA ROSA - Microárea 6</option>
+        <option v-for="area in MICROAREAS" :key="area" :value="(area.split('-')[0] || '').trim()">{{ area }}</option>
       </select>
       <div class="relative md:col-span-3">
          <input v-model="searchDob" type="date" class="w-full border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-sm p-2 outline-none focus:ring-2 focus:ring-blue-500">
@@ -137,7 +126,7 @@ const tagStyles: Record<string, string> = {
             <td class="px-6 py-4">
               <div @click="openModal(patient)" class="font-bold text-slate-800 dark:text-white cursor-pointer hover:text-blue-600">{{ patient.name }}</div>
               <div class="mt-1 flex gap-1 flex-wrap">
-                <span v-for="tag in patient.tags" :key="tag" :class="['text-[10px] px-1.5 py-0.5 rounded font-bold', tagStyles[tag] || 'bg-gray-100']">{{ tag }}</span>
+                <span v-for="tag in patient.tags" :key="tag" :class="['text-[10px] px-1.5 py-0.5 rounded font-bold', TAG_STYLES[tag] || 'bg-gray-100']">{{ tag }}</span>
               </div>
             </td>
             <td class="px-6 py-4 text-slate-500 dark:text-slate-400">{{ patient.acs }}</td>
@@ -154,7 +143,7 @@ const tagStyles: Record<string, string> = {
       </table>
     </div>
 
-    <!-- Modal (AGORA COM APPOINTMENTS E KEY PARA FORÇAR ATUALIZAÇÃO) -->
+    <!-- Modal (KEY = Força reconstrução ao mudar paciente) -->
     <PatientModal 
       :key="editingPatient?.id"
       :isOpen="isModalOpen" 

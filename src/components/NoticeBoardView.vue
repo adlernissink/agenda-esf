@@ -4,6 +4,7 @@ import { collection, onSnapshot, addDoc, doc, deleteDoc, getDoc } from 'firebase
 import { db, appId } from '../firebase';
 import { LucideSend, LucideTrash2, LucideMessageSquare, LucideUser } from 'lucide-vue-next';
 import { useToast } from '../utils/toast';
+import { sendNotification } from '../utils/notificationService'; // Importado apenas UMA vez
 
 const props = defineProps<{
   user: any;
@@ -42,11 +43,9 @@ const formatDate = (isoString: string) => {
   const date = new Date(isoString);
   const today = new Date();
   
-  // Se for hoje, mostra só a hora
   if (date.toDateString() === today.toDateString()) {
     return 'Hoje às ' + date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   }
-  // Se não, mostra data e hora
   return date.toLocaleDateString('pt-BR') + ' às ' + date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 };
 
@@ -56,12 +55,21 @@ const handlePost = async () => {
   
   isLoading.value = true;
   try {
+    // 1. Salva o post
     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'posts'), {
       text: newPostText.value,
-      authorName: currentUserName.value, // Salva o nome da época
+      authorName: currentUserName.value, 
       authorId: props.user.uid,
       createdAt: new Date().toISOString()
     });
+
+    // 2. Envia a notificação para o sistema
+    await sendNotification(
+        'Novo Aviso no Mural', 
+        `${currentUserName.value} postou: "${newPostText.value.substring(0, 30)}..."`, 
+        'mural'
+    );
+
     newPostText.value = '';
     showToast("Mensagem publicada!", "success");
   } catch (e: any) {
@@ -71,7 +79,7 @@ const handlePost = async () => {
   }
 };
 
-// Apagar Post (Só se for o dono)
+// Apagar Post
 const handleDelete = async (id: string) => {
   if (confirm("Apagar esta mensagem?")) {
     try {
@@ -133,7 +141,6 @@ const handleDelete = async (id: string) => {
                     : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700'
                 ]"
             >
-                <!-- Avatar (Sigla) -->
                 <div class="shrink-0 w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center font-bold text-slate-500 dark:text-slate-300">
                     <LucideUser :size="20" />
                 </div>
@@ -145,7 +152,6 @@ const handleDelete = async (id: string) => {
                             <span class="text-xs text-slate-400">{{ formatDate(post.createdAt) }}</span>
                         </div>
                         
-                        <!-- Botão Apagar (Só aparece para o dono) -->
                         <button 
                             v-if="post.authorId === user.uid"
                             @click="handleDelete(post.id)"

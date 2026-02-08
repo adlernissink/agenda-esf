@@ -1,50 +1,44 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
-import { collection, addDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db, appId } from '../firebase';
 import { LucideX, LucideCalendarCheck, LucideUserPlus } from 'lucide-vue-next';
 import { useToast } from '../utils/toast'; 
+import { sendNotification } from '../utils/notificationService';
+import { APPOINTMENT_TYPES, PROFESSIONALS } from '../config/settings';
 
-// PROPS
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   isOpen: boolean;
   appointmentToEdit?: any;
-  patients: any[];      
-  appointments: any[];  
-}>();
+  patients?: any[];      
+  appointments?: any[];  
+}>(), {
+  patients: () => [],
+  appointments: () => [],
+  appointmentToEdit: undefined
+});
 
 const emit = defineEmits(['close', 'saved', 'create-patient']);
 const { showToast } = useToast(); 
 
-// ESTADO
 const isLoading = ref(false);
 const searchQuery = ref(''); 
 const showSuggestions = ref(false); 
 
+const defaultProf = PROFESSIONALS[0]!;
+const defaultType = APPOINTMENT_TYPES[0]!;
+
 const form = ref({
   patientId: '',
   patientName: '', 
-  professional: 'Dr. Adler',
-  type: 'Rotina',
-  duration: 20,
+  professional: defaultProf, 
+  type: defaultType.value, 
+  duration: defaultType.duration,
   notes: '',
   date: '',
   time: ''
 });
 
-const appointmentTypes = [
-  { label: 'Rotina (20m)', value: 'Rotina', duration: 20 },
-  { label: 'Pré-Natal (40m)', value: 'Pré-Natal', duration: 40 },
-  { label: 'Primeira Consulta (30m)', value: 'Primeira Consulta', duration: 30 },
-  { label: 'Saúde Mental (40m)', value: 'Saúde Mental', duration: 40 },
-  { label: 'Exames (15m)', value: 'Exames', duration: 15 },
-  { label: 'Procedimento (40m)', value: 'Infiltração', duration: 40 },
-  { label: 'Esporão (20m)', value: 'Esporão', duration: 20 },
-  { label: 'Lâmina (30m)', value: 'Lâmina', duration: 30 },
-  { label: 'Puericultura (30m)', value: 'Puericultura', duration: 30 },
-];
-
-// --- FECHAR COM ESC (NOVO) ---
 const handleKeydown = (e: KeyboardEvent) => {
   if (e.key === 'Escape' && props.isOpen) {
     emit('close');
@@ -54,7 +48,6 @@ const handleKeydown = (e: KeyboardEvent) => {
 onMounted(() => window.addEventListener('keydown', handleKeydown));
 onUnmounted(() => window.removeEventListener('keydown', handleKeydown));
 
-// AUTOCOMPLETE
 const filteredPatients = computed(() => {
   if (searchQuery.value.length < 2) return [];
   const query = searchQuery.value.toLowerCase();
@@ -78,20 +71,28 @@ const triggerNewPatient = () => {
 watch(() => props.appointmentToEdit, (newVal) => {
   if (newVal) {
     form.value = { ...newVal };
-    const pat = props.patients.find(p => p.id === newVal.patientId);
-    searchQuery.value = pat ? pat.name : 'Paciente não encontrado';
-    form.value.patientName = pat ? pat.name : '';
+    const patientId = newVal?.patientId;
+    
+    if (patientId) {
+        const pat = props.patients.find(p => p.id === patientId);
+        searchQuery.value = pat ? pat.name : 'Paciente não encontrado';
+        form.value.patientName = pat ? pat.name : '';
+    }
   } else {
+    // RESET COM VALORES PADRÃO SEGUROS
     form.value = { 
-      patientId: '', patientName: '', professional: 'Dr. Adler', 
-      type: 'Rotina', duration: 20, notes: '', date: '', time: '' 
+      patientId: '', patientName: '', 
+      professional: defaultProf, 
+      type: defaultType.value, 
+      duration: defaultType.duration, 
+      notes: '', date: '', time: '' 
     };
     searchQuery.value = '';
   }
 });
 
 const updateDuration = () => {
-  const selected = appointmentTypes.find(t => t.value === form.value.type);
+  const selected = APPOINTMENT_TYPES.find(t => t.value === form.value.type);
   if (selected) form.value.duration = selected.duration;
 };
 
@@ -100,7 +101,10 @@ const checkConflict = () => {
   const end = new Date(start.getTime() + form.value.duration * 60000);
 
   const conflict = props.appointments.find(a => {
-    if (props.appointmentToEdit && a.id === props.appointmentToEdit.id) return false;
+    const editItem = props.appointmentToEdit;
+    
+    if (editItem && editItem.id && a.id === editItem.id) return false;
+    
     if (a.professional !== form.value.professional || a.date !== form.value.date) return false;
 
     const aStart = new Date(`${a.date}T${a.time}`);
@@ -110,6 +114,36 @@ const checkConflict = () => {
   });
 
   return conflict;
+};
+
+// --- NOVA FUNÇÃO DE VERIFICAÇÃO ---
+const checkBlock = async () => {
+    try {
+        const dateVal = form.value.date;
+        const prof = form.value.professional;
+        
+        const blockSnap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'blocked_days', dateVal));
+        
+        if (blockSnap.exists()) {
+            const data = blockSnap.data();
+            
+            // 1. Verifica se está bloqueado para TODOS
+            if (data.ALL) {
+                showToast(`Data bloqueada: ${data.ALL}`, "error");
+                return true; // Está bloqueado
+            }
+
+            // 2. Verifica se está bloqueado para o PROFISSIONAL ESCOLHIDO
+            if (data[prof]) {
+                showToast(`Agenda bloqueada para ${prof}: ${data[prof]}`, "error");
+                return true; // Está bloqueado
+            }
+        }
+        return false; // Não está bloqueado
+    } catch (e) {
+        console.error("Erro ao verificar bloqueio", e);
+        return false; // Na dúvida, deixa passar (ou bloqueie se preferir segurança total)
+    }
 };
 
 const handleSubmit = async () => {
@@ -130,6 +164,10 @@ const handleSubmit = async () => {
     return;
   }
 
+  if (await checkBlock()) {
+      return; // Para tudo se estiver bloqueado
+  }
+
   if (checkConflict()) {
     showToast("⚠️ CONFLITO DE HORÁRIO! Já existe agendamento neste intervalo.", "error");
     return;
@@ -140,14 +178,23 @@ const handleSubmit = async () => {
     const data = { ...form.value };
     delete (data as any).patientName; 
 
-    if (props.appointmentToEdit) {
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'appointments', props.appointmentToEdit.id), data);
+    const editItem = props.appointmentToEdit;
+
+    if (editItem && editItem.id) {
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'appointments', editItem.id), data);
       showToast("Agendamento atualizado com sucesso!", "success");
     } else {
       await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'appointments'), {
         ...data,
         createdAt: new Date().toISOString()
       });
+      
+      await sendNotification(
+        'Novo Agendamento', 
+        `${form.value.type} para ${form.value.patientName} às ${form.value.time}`, 
+        'agenda'
+      );
+
       showToast("Agendamento criado com sucesso!", "success");
     }
     emit('saved');
@@ -201,14 +248,13 @@ const handleSubmit = async () => {
             <div>
                 <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Profissional</label>
                 <select v-model="form.professional" class="w-full border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl p-2 outline-none">
-                    <option value="Dr. Adler">Dr. Adler</option>
-                    <option value="Enfermeira">Enfermeira</option>
+                    <option v-for="prof in PROFESSIONALS" :key="prof" :value="prof">{{ prof }}</option>
                 </select>
             </div>
             <div>
                 <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Tipo</label>
                 <select v-model="form.type" @change="updateDuration" class="w-full border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl p-2 outline-none">
-                    <option v-for="t in appointmentTypes" :key="t.value" :value="t.value">
+                    <option v-for="t in APPOINTMENT_TYPES" :key="t.value" :value="t.value">
                         {{ t.label }}
                     </option>
                 </select>

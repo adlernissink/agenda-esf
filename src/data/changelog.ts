@@ -7,6 +7,18 @@ export interface Version {
 
 export const appVersions: Version[] = [
     {
+        version: '1.6.0',
+        date: '08/02/2026',
+        type: 'major',
+        changes: [
+            '✨ Implementação do módulo de Receitas Médicas no card do paciente, permitindo criação, edição e visualização de receitas.',
+            '🔍 Criado o sistema inteligente de renovações de receitas, com alertas de pacientes que precisam renovar suas receitas.',
+            '📋 Adição de uma nova aba de Documentos, onde é possível gerar documentos para pacientes, como relatórios, APAC e LME (em fase experimental).',
+            '📊 Adicionado sistema de geração de relatórios e gráficos para análise de dados do sistema, com filtragem avançada, e seção de Busca Ativa, que alerta quais pacientes com condições crônicas não possuem agendamentos há mais de 6 meses.',
+            '📱 Sistema de notificações integrado, com painel de notificações no dashboard e envio de notificações para os usuários, para avisos, lembretes e comunicados internos.'
+        ]
+    },
+    {
         version: '1.5.0',
         date: '07/02/2026',
         type: 'major',
@@ -30,7 +42,7 @@ export const appVersions: Version[] = [
     },
     {
         version: '1.3.0',
-        date: '24/01/2026',
+        date: '19/01/2026',
         type: 'major',
         changes: [
             '🎉 Lançamento inicial da plataforma Gestão eSF para uso da equipe 10.',

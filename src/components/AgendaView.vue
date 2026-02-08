@@ -10,6 +10,7 @@ import {
 import AppointmentModal from './AppointmentModal.vue';
 import PatientModal from './PatientModal.vue';
 import { useToast } from '../utils/toast';
+import { PROFESSIONALS } from '../config/settings';
 
 type BlockedDaysMap = Record<string, any>;
 const { showToast } = useToast();
@@ -48,7 +49,7 @@ const getPatientName = (id: string) => {
 };
 
 const toggleNote = (id: string) => {
-    if (activeNoteId.value && activeNoteId.value === id) {
+    if (activeNoteId.value === id) {
         activeNoteId.value = null; 
     } else {
         activeNoteId.value = id; 
@@ -123,8 +124,9 @@ const weekDays = computed(() => {
   for (let i = 0; i < 5; i++) {
     const current = new Date(monday);
     current.setDate(monday.getDate() + i);
-    // Correção: Forçar string
-    const dateStr = current.toISOString().split('T')[0] as string;
+    
+    // CORREÇÃO 1: Fallback para string vazia
+    const dateStr = current.toISOString().split('T')[0] || '';
     
     let count = appointments.value.filter(a => a.date === dateStr).length;
     if (selectedProf.value !== 'todos') {
@@ -132,7 +134,8 @@ const weekDays = computed(() => {
     }
 
     const blockData = blockedDays.value[dateStr] || {};
-    const isBlocked = blockData['ALL'] || (selectedProf.value !== 'todos' && blockData[selectedProf.value]);
+    const profKey = String(selectedProf.value);
+    const isBlocked = blockData['ALL'] || (selectedProf.value !== 'todos' && blockData[profKey]);
 
     days.push({
         date: dateStr,
@@ -153,13 +156,17 @@ const switchToDay = (dateStr: string) => {
 
 const isBlockedDay = computed(() => {
     const day = new Date(selectedDate.value + 'T00:00:00').getDay();
-    const dateStr = selectedDate.value as string;
+    
+    // CORREÇÃO 2: Fallback para string vazia
+    const dateStr = selectedDate.value || '';
     
     if (day === 0 || day === 6 || day === 5) return { isBlocked: true, reason: 'Fim de Semana / Sexta' };
     
     const blockData = blockedDays.value[dateStr] || {};
+    const profKey = String(selectedProf.value);
+    
     if (blockData['ALL']) return { isBlocked: true, reason: blockData['ALL'] };
-    if (selectedProf.value !== 'todos' && blockData[selectedProf.value]) return { isBlocked: true, reason: blockData[selectedProf.value] };
+    if (selectedProf.value !== 'todos' && blockData[profKey]) return { isBlocked: true, reason: blockData[profKey] };
 
     return { isBlocked: false, reason: '' };
 });
@@ -233,8 +240,8 @@ const handleDelete = async (id: string) => {
     <div class="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col md:flex-row gap-4 items-center">
         <select v-model="selectedProf" class="border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg p-2 outline-none w-full md:w-auto text-sm">
             <option value="todos">Todos Profissionais</option>
-            <option value="Dr. Adler">Dr. Adler</option>
-            <option value="Enfermeira">Enfermeira</option>
+            <!-- DINÂMICO -->
+            <option v-for="prof in PROFESSIONALS" :key="prof" :value="prof">{{ prof }}</option>
         </select>
 
         <div class="flex items-center gap-2 flex-1 justify-center md:justify-start">

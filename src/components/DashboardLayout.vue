@@ -8,6 +8,8 @@ import {
   LucideLogOut, LucideMenu, LucideMessageSquare 
 } from 'lucide-vue-next';
 import ProfileModal from './ProfileModal.vue';
+import NotificationsPanel from './NotificationsPanel.vue';
+import { APP_INFO } from '../config/settings';
 
 const props = defineProps(['user']);
 const emit = defineEmits(['logout']);
@@ -41,7 +43,7 @@ const getNavClass = (tab: string) => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
+  <div class="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-300 flex flex-col">
     <nav class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-40">
       <div class="max-w-7xl mx-auto px-4 lg:px-8">
         <div class="flex justify-between h-16">
@@ -57,13 +59,16 @@ const getNavClass = (tab: string) => {
             <div class="hidden lg:flex space-x-2 h-full ml-4">
               <button @click="switchTab('agenda')" :class="getNavClass('agenda')"><LucideCalendar :size="18" /> Agenda</button>
               <button @click="switchTab('pacientes')" :class="getNavClass('pacientes')"><LucideUsers :size="18" /> Pacientes</button>
+              <button @click="switchTab('recipes')" :class="getNavClass('recipes')"><LucideFilePlus :size="18" /> Receitas</button>
               <button @click="switchTab('mural')" :class="getNavClass('mural')"><LucideMessageSquare :size="18" /> Mural</button>
               <button @click="switchTab('reports')" :class="getNavClass('reports')"><LucideBarChart2 :size="18" /> Relatórios</button>
-              <button @click="switchTab('recipes')" :class="getNavClass('recipes')"><LucideFilePlus :size="18" /> Receitas</button>
             </div>
           </div>
 
           <div class="flex items-center gap-4">
+
+            <NotificationsPanel :user="user" />
+
             <button @click="isProfileOpen = true" class="flex items-center gap-2 text-xs font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-700 px-3 py-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600 transition">
               <LucideUser :size="14" class="text-slate-500" />
               <span class="hidden md:inline max-w-[150px] truncate">{{ userName }}</span>
@@ -82,16 +87,27 @@ const getNavClass = (tab: string) => {
         <div class="px-4 pt-2 pb-4 space-y-1">
             <button @click="switchTab('agenda')" class="w-full text-left px-3 py-3 rounded-xl text-sm font-medium flex items-center gap-3 text-slate-500 hover:bg-slate-50"><LucideCalendar :size="18" /> Agenda</button>
             <button @click="switchTab('pacientes')" class="w-full text-left px-3 py-3 rounded-xl text-sm font-medium flex items-center gap-3 text-slate-500 hover:bg-slate-50"><LucideUsers :size="18" /> Pacientes</button>
+            <button @click="switchTab('recipes')" class="w-full text-left px-3 py-3 rounded-xl text-sm font-medium flex items-center gap-3 text-slate-500 hover:bg-slate-50"><LucideFilePlus :size="18" /> Receitas</button>
             <button @click="switchTab('mural')" class="w-full text-left px-3 py-3 rounded-xl text-sm font-medium flex items-center gap-3 text-slate-500 hover:bg-slate-50"><LucideMessageSquare :size="18" /> Mural</button>
             <button @click="switchTab('reports')" class="w-full text-left px-3 py-3 rounded-xl text-sm font-medium flex items-center gap-3 text-slate-500 hover:bg-slate-50"><LucideBarChart2 :size="18" /> Relatórios</button>
-            <button @click="switchTab('recipes')" class="w-full text-left px-3 py-3 rounded-xl text-sm font-medium flex items-center gap-3 text-slate-500 hover:bg-slate-50"><LucideFilePlus :size="18" /> Receitas</button>
         </div>
     </div>
 
     <!-- CONTEÚDO -->
-    <main class="max-w-7xl mx-auto p-4 lg:p-8">
+    <main class="max-w-7xl mx-auto p-4 lg:p-8 flex-1 w-full">
       <slot :currentTab="activeTab"></slot>
     </main>
+
+    <footer class="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-6 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 text-center">
+            <p class="text-xs text-slate-400 dark:text-slate-500 font-medium">
+                {{ APP_INFO.name }} <span class="mx-1">•</span> v{{ APP_INFO.version }} <span class="mx-1">•</span> {{ APP_INFO.year }}
+            </p>
+            <p class="text-[10px] text-slate-300 dark:text-slate-600 mt-1">
+                {{ APP_INFO.footerText }}
+            </p>
+        </div>
+    </footer>
 
     <!-- MODAL DE PERFIL -->
     <ProfileModal :isOpen="isProfileOpen" :user="user" @close="isProfileOpen = false" />

@@ -37,7 +37,7 @@ const handleLogin = async () => {
         <div class="bg-blue-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-200 dark:shadow-blue-900/20">
            <LucideShieldCheck class="text-white" :size="32" />
         </div>
-        <h2 class="text-3xl font-extrabold text-slate-900 dark:text-white">eSF 010</h2>
+        <h2 class="text-3xl font-extrabold text-slate-900 dark:text-white">Gestão eSF</h2>
         <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">Acesso restrito à equipe de saúde</p>
         
         <!-- Botão de Versão Clicável -->
