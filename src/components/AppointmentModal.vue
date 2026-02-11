@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
-import { collection, addDoc, doc, updateDoc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc, getDoc } from 'firebase/firestore'; // Adicionei getDoc
 import { db, appId } from '../firebase';
 import { LucideX, LucideCalendarCheck, LucideUserPlus } from 'lucide-vue-next';
 import { useToast } from '../utils/toast'; 
@@ -25,6 +25,7 @@ const isLoading = ref(false);
 const searchQuery = ref(''); 
 const showSuggestions = ref(false); 
 
+// CONSTANTES SEGURAS
 const defaultProf = PROFESSIONALS[0]!;
 const defaultType = APPOINTMENT_TYPES[0]!;
 
@@ -68,6 +69,20 @@ const triggerNewPatient = () => {
   emit('close'); 
 };
 
+// Função para abrir sugestões (usada no focus e click)
+const openSuggestions = () => {
+    if (!props.appointmentToEdit) {
+        showSuggestions.value = true;
+    }
+};
+
+// Fecha sugestões com um pequeno atraso para permitir o clique
+const closeSuggestions = () => {
+    setTimeout(() => {
+        showSuggestions.value = false;
+    }, 200);
+};
+
 watch(() => props.appointmentToEdit, (newVal) => {
   if (newVal) {
     form.value = { ...newVal };
@@ -79,7 +94,6 @@ watch(() => props.appointmentToEdit, (newVal) => {
         form.value.patientName = pat ? pat.name : '';
     }
   } else {
-    // RESET COM VALORES PADRÃO SEGUROS
     form.value = { 
       patientId: '', patientName: '', 
       professional: defaultProf, 
@@ -94,6 +108,34 @@ watch(() => props.appointmentToEdit, (newVal) => {
 const updateDuration = () => {
   const selected = APPOINTMENT_TYPES.find(t => t.value === form.value.type);
   if (selected) form.value.duration = selected.duration;
+};
+
+// --- NOVA FUNÇÃO DE VERIFICAÇÃO ---
+const checkBlock = async () => {
+    try {
+        const dateVal = form.value.date;
+        const prof = form.value.professional;
+        
+        const blockSnap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'blocked_days', dateVal));
+        
+        if (blockSnap.exists()) {
+            const data = blockSnap.data();
+            
+            if (data.ALL) {
+                showToast(`Data bloqueada: ${data.ALL}`, "error");
+                return true; 
+            }
+
+            if (data[prof]) {
+                showToast(`Agenda bloqueada para ${prof}: ${data[prof]}`, "error");
+                return true; 
+            }
+        }
+        return false; 
+    } catch (e) {
+        console.error("Erro ao verificar bloqueio", e);
+        return false; 
+    }
 };
 
 const checkConflict = () => {
@@ -116,36 +158,6 @@ const checkConflict = () => {
   return conflict;
 };
 
-// --- NOVA FUNÇÃO DE VERIFICAÇÃO ---
-const checkBlock = async () => {
-    try {
-        const dateVal = form.value.date;
-        const prof = form.value.professional;
-        
-        const blockSnap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'blocked_days', dateVal));
-        
-        if (blockSnap.exists()) {
-            const data = blockSnap.data();
-            
-            // 1. Verifica se está bloqueado para TODOS
-            if (data.ALL) {
-                showToast(`Data bloqueada: ${data.ALL}`, "error");
-                return true; // Está bloqueado
-            }
-
-            // 2. Verifica se está bloqueado para o PROFISSIONAL ESCOLHIDO
-            if (data[prof]) {
-                showToast(`Agenda bloqueada para ${prof}: ${data[prof]}`, "error");
-                return true; // Está bloqueado
-            }
-        }
-        return false; // Não está bloqueado
-    } catch (e) {
-        console.error("Erro ao verificar bloqueio", e);
-        return false; // Na dúvida, deixa passar (ou bloqueie se preferir segurança total)
-    }
-};
-
 const handleSubmit = async () => {
   if (!form.value.patientId) {
     showToast("Selecione um paciente da lista.", "warning");
@@ -164,8 +176,9 @@ const handleSubmit = async () => {
     return;
   }
 
+  // Verifica bloqueio no banco
   if (await checkBlock()) {
-      return; // Para tudo se estiver bloqueado
+      return; 
   }
 
   if (checkConflict()) {
@@ -219,27 +232,43 @@ const handleSubmit = async () => {
         
         <div class="relative">
             <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Paciente</label>
+            <!-- CORREÇÃO: Input com eventos de toque para mobile -->
             <input 
               v-model="searchQuery" 
-              @focus="showSuggestions = true"
+              @focus="openSuggestions"
+              @click="openSuggestions"
+              @blur="closeSuggestions"
               type="text" 
               placeholder="Digite o nome..." 
               class="w-full border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl px-4 py-2 outline-none"
               :disabled="!!appointmentToEdit" 
+              autocomplete="off"
             >
-            <div v-if="showSuggestions && searchQuery.length > 1" class="absolute z-10 w-full bg-white dark:bg-slate-700 shadow-xl rounded-b-xl border border-t-0 border-slate-200 dark:border-slate-600 max-h-48 overflow-y-auto">
+            
+            <!-- Lista com z-index alto e posicionamento seguro -->
+            <div v-if="showSuggestions && filteredPatients.length > 0" class="absolute z-[100] w-full bg-white dark:bg-slate-700 shadow-xl rounded-b-xl border border-t-0 border-slate-200 dark:border-slate-600 max-h-48 overflow-y-auto">
                 <div 
                   v-for="p in filteredPatients" :key="p.id"
-                  @click="selectPatient(p)"
+                  @mousedown.prevent="selectPatient(p)" 
                   class="px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-600 cursor-pointer text-sm border-b border-slate-50 dark:border-slate-600 last:border-0"
                 >
                     {{ p.name }}
                 </div>
                 <div 
-                  @click="triggerNewPatient"
+                  @mousedown.prevent="triggerNewPatient"
                   class="px-4 py-3 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-bold cursor-pointer text-sm flex items-center gap-2 hover:bg-blue-100 dark:hover:bg-blue-900/50"
                 >
                     <LucideUserPlus :size="16" /> + Cadastrar Novo Paciente
+                </div>
+            </div>
+            
+            <!-- Mensagem se digitou mas não achou nada -->
+            <div v-if="showSuggestions && searchQuery.length > 1 && filteredPatients.length === 0" class="absolute z-[100] w-full bg-white dark:bg-slate-700 shadow-xl rounded-b-xl border border-t-0 border-slate-200 dark:border-slate-600 p-2">
+                 <div 
+                  @mousedown.prevent="triggerNewPatient"
+                  class="px-4 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-bold cursor-pointer text-sm flex items-center gap-2 rounded-lg"
+                >
+                    <LucideUserPlus :size="16" /> Paciente não encontrado. Cadastrar?
                 </div>
             </div>
         </div>
